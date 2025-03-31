@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stream Player</title>
-
+    <title>StreamFly Player</title>
+    
     <!-- HLS.js for stream playback -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.10/dist/hls.min.js"></script>
+    
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
+    
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
+    
     <style>
         :root {
             --primary-color: #3a86ff;
@@ -234,6 +234,7 @@
             flex-direction: column;
             align-items: center;
             gap: 1rem;
+            z-index: 10;
         }
 
         .spinner {
@@ -264,6 +265,7 @@
             border-radius: 8px;
             text-align: center;
             max-width: 80%;
+            z-index: 10;
         }
 
         .error-title {
@@ -295,33 +297,35 @@
             font-size: 0.9rem;
         }
 
+        /* Mobile optimizations */
         @media (max-width: 768px) {
             header {
                 padding: 0.75rem;
             }
-
+            
             .logo {
                 font-size: 1.2rem;
             }
-
+            
             main {
                 padding-top: 4rem;
             }
-
+            
             .status-grid {
                 grid-template-columns: 1fr;
             }
-
+            
             .quality-controls {
                 justify-content: center;
             }
-
+            
             .quality-btn {
                 padding: 0.4rem 0.8rem;
                 font-size: 0.9rem;
             }
         }
 
+        /* Collapsible sections for mobile */
         .collapsible {
             margin-top: 1rem;
         }
@@ -361,6 +365,88 @@
         .collapsible.open .fa-chevron-down {
             transform: rotate(180deg);
         }
+
+        /* Play button overlay */
+        .play-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 20;
+        }
+
+        .play-button {
+            width: 80px;
+            height: 80px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .play-button i {
+            font-size: 40px;
+            color: white;
+        }
+
+        .play-overlay:hover .play-button {
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        /* Connection status styles */
+        #connection-status {
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            background-color: rgba(0, 0, 0, 0.3);
+        }
+
+        /* Debug console */
+        .debug-console {
+            background-color: var(--surface-color);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .debug-entry {
+            margin-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 0.5rem;
+        }
+
+        .debug-time {
+            color: var(--text-secondary);
+            margin-right: 0.5rem;
+        }
+
+        .debug-info {
+            color: var(--primary-color);
+        }
+
+        .debug-error {
+            color: var(--error-color);
+        }
+
+        .debug-warning {
+            color: var(--warning-color);
+        }
     </style>
 </head>
 <body>
@@ -370,25 +456,31 @@
             <span>StreamFly</span>
         </div>
         <div id="connection-status">
-            <i class="fas fa-circle-notch fa-spin"></i> Connecting...
+            <i class="fas fa-circle-notch fa-spin"></i> Initializing...
         </div>
     </header>
 
     <main>
         <div class="player-container">
             <video id="video-player" controls playsinline></video>
-
+            
             <div id="loading" class="loading-indicator">
                 <div class="spinner"></div>
                 <div class="loading-text">Loading stream...</div>
             </div>
-
+            
             <div id="player-error" class="player-error" style="display: none;">
                 <div class="error-title">Stream Error</div>
                 <div id="error-message">Failed to load the stream.</div>
                 <button id="retry-button" class="retry-btn">
                     <i class="fas fa-redo"></i> Retry
                 </button>
+            </div>
+            
+            <div id="play-overlay" class="play-overlay" style="display: none;">
+                <div class="play-button">
+                    <i class="fas fa-play"></i>
+                </div>
             </div>
         </div>
 
@@ -442,6 +534,18 @@
                 </div>
             </div>
         </div>
+
+        <div class="collapsible">
+            <div class="collapsible-header">
+                <div class="collapsible-title">Debug Console</div>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="collapsible-content">
+                <div id="debug-console" class="debug-console">
+                    <!-- Debug messages will be added here -->
+                </div>
+            </div>
+        </div>
     </main>
 
     <footer>
@@ -449,7 +553,7 @@
     </footer>
 
     <script>
-
+        // Configuration
         const proxyBaseUrl = 'https://cstream-fly.onrender.com';
         let currentQuality = '720p';
         let hls = null;
@@ -457,7 +561,57 @@
         let statusCheckInterval = null;
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 5;
-
+        
+        // Debug console
+        const debugConsole = document.getElementById('debug-console');
+        
+        // Log levels for debug console
+        const LOG_LEVELS = {
+            INFO: 'info',
+            ERROR: 'error',
+            WARNING: 'warning'
+        };
+        
+        // Add a log entry to debug console
+        function logToConsole(message, level = LOG_LEVELS.INFO) {
+            const now = new Date();
+            const timeString = now.toTimeString().split(' ')[0];
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = 'debug-entry';
+            
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'debug-time';
+            timeSpan.textContent = timeString;
+            
+            const messageSpan = document.createElement('span');
+            messageSpan.className = `debug-${level}`;
+            messageSpan.textContent = message;
+            
+            logEntry.appendChild(timeSpan);
+            logEntry.appendChild(messageSpan);
+            
+            debugConsole.appendChild(logEntry);
+            
+            // Auto-scroll to bottom
+            debugConsole.scrollTop = debugConsole.scrollHeight;
+            
+            // Limit number of entries
+            if (debugConsole.children.length > 50) {
+                debugConsole.removeChild(debugConsole.children[0]);
+            }
+            
+            // Also log to browser console
+            if (level === LOG_LEVELS.ERROR) {
+                console.error(message);
+            } else if (level === LOG_LEVELS.WARNING) {
+                console.warn(message);
+            } else {
+                console.log(message);
+            }
+        }
+        
+        // DOM Elements
         const videoPlayer = document.getElementById('video-player');
         const loadingIndicator = document.getElementById('loading');
         const playerError = document.getElementById('player-error');
@@ -467,18 +621,30 @@
         const refreshStatusButton = document.getElementById('refresh-status');
         const connectionStatus = document.getElementById('connection-status');
         const collapsibles = document.querySelectorAll('.collapsible');
-
+        const playOverlay = document.getElementById('play-overlay');
+        
+        // Initialize HLS Player
         function initPlayer(quality) {
             currentQuality = quality;
-
+            
+            // Clean up existing player if any
             if (hls) {
                 hls.destroy();
                 hls = null;
+                logToConsole('Destroyed previous HLS instance');
             }
-
+            
+            // Reset player state
+            videoPlayer.pause();
+            videoPlayer.removeAttribute('src');
+            videoPlayer.load();
+            
+            // Show loading indicator, hide other overlays
             loadingIndicator.style.display = 'flex';
             playerError.style.display = 'none';
-
+            playOverlay.style.display = 'none';
+            
+            // Set active quality button
             qualityButtons.forEach(btn => {
                 if (btn.dataset.quality === quality) {
                     btn.classList.add('active');
@@ -486,110 +652,199 @@
                     btn.classList.remove('active');
                 }
             });
-
-            if (Hls.isSupported()) {
+            
+            logToConsole(`Initializing player with quality: ${quality}`);
+            
+            // Check if HLS is supported
+            if (!Hls.isSupported()) {
+                // Try native playback
+                if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+                    logToConsole('Using native HLS playback (Safari/iOS)');
+                    initNativeHls(quality);
+                } else {
+                    showError('Your browser does not support HLS streaming. Please use a modern browser like Chrome, Firefox, or Safari.');
+                    logToConsole('Browser does not support HLS', LOG_LEVELS.ERROR);
+                }
+                return;
+            }
+            
+            // Using HLS.js
+            try {
                 const proxyUrl = `${proxyBaseUrl}/proxy/playlist/${quality}`;
-
-                hls = new Hls({
-                    maxBufferLength: 30,
-                    maxMaxBufferLength: 60,
-                    enableWorker: true,
-                    fragLoadingMaxRetry: 5,
-                    manifestLoadingMaxRetry: 5,
-                    levelLoadingMaxRetry: 5,
-                    xhrSetup: function(xhr, url) {
-
-                    }
-                });
-
-                hls.loadSource(proxyUrl);
-                hls.attachMedia(videoPlayer);
-
-                hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                    console.log('Manifest parsed, attempting playback');
-                    loadingIndicator.style.display = 'none';
-
-                    const playPromise = videoPlayer.play();
-                    if (playPromise !== undefined) {
-                        playPromise.then(() => {
-                            isPlaying = true;
-                            updateConnectionStatus('connected');
-                        }).catch(error => {
-                            console.error('Autoplay prevented:', error);
-                            showPlayButton();
-                        });
-                    }
-                });
-
-                hls.on(Hls.Events.ERROR, function(event, data) {
-                    console.error('HLS error:', data);
-
-                    if (data.fatal) {
-                        switch(data.type) {
-                            case Hls.ErrorTypes.NETWORK_ERROR:
-                                console.log('Fatal network error, trying to recover');
-                                updateConnectionStatus('reconnecting');
-
-                                if (reconnectAttempts < maxReconnectAttempts) {
-                                    reconnectAttempts++;
-                                    hls.startLoad();
-                                } else {
-                                    showError('Network error: Cannot load the stream. Please check your connection or try again later.');
-                                }
-                                break;
-
-                            case Hls.ErrorTypes.MEDIA_ERROR:
-                                console.log('Fatal media error, trying to recover');
-                                updateConnectionStatus('reconnecting');
-                                hls.recoverMediaError();
-                                break;
-
-                            default:
-                                console.log('Fatal error, cannot recover');
-                                showError('Stream error: Cannot play the content. Please try a different quality or reload the page.');
-                                hls.destroy();
-                                break;
+                logToConsole(`Loading playlist from: ${proxyUrl}`);
+                
+                // Check if proxy is reachable
+                fetch(`${proxyBaseUrl}/health`)
+                    .then(response => {
+                        if (response.ok) {
+                            logToConsole('Proxy server is reachable');
+                            initHlsJs(proxyUrl);
+                        } else {
+                            showError(`Proxy server returned status: ${response.status}`);
+                            logToConsole(`Proxy server error: ${response.status}`, LOG_LEVELS.ERROR);
                         }
-                    }
-                });
-            } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
-
-                videoPlayer.src = `${proxyBaseUrl}/proxy/playlist/${quality}`;
-
-                videoPlayer.addEventListener('loadedmetadata', function() {
-                    loadingIndicator.style.display = 'none';
-                    videoPlayer.play().then(() => {
-                        isPlaying = true;
-                        updateConnectionStatus('connected');
-                    }).catch(error => {
-                        console.error('Autoplay prevented:', error);
-                        showPlayButton();
+                    })
+                    .catch(error => {
+                        showError('Cannot connect to proxy server. Please check your connection or try again later.');
+                        logToConsole(`Proxy connection error: ${error.message}`, LOG_LEVELS.ERROR);
                     });
-                });
-
-                videoPlayer.addEventListener('error', function() {
-                    showError('Stream error: Cannot play the content in your browser. Please try a different browser.');
-                });
-            } else {
-                showError('Your browser does not support HLS streaming. Please use a modern browser like Chrome, Firefox, or Safari.');
+            } catch (error) {
+                showError(`Failed to initialize player: ${error.message}`);
+                logToConsole(`Initialization error: ${error.message}`, LOG_LEVELS.ERROR);
             }
         }
-
+        
+        // Initialize with HLS.js
+        function initHlsJs(proxyUrl) {
+            updateConnectionStatus('connecting');
+            
+            hls = new Hls({
+                debug: false,
+                maxBufferLength: 30,
+                maxMaxBufferLength: 60,
+                enableWorker: true,
+                fragLoadingMaxRetry: 5,
+                manifestLoadingMaxRetry: 5,
+                levelLoadingMaxRetry: 5,
+                startLevel: -1, // Auto
+                maxBufferHole: 0.5,
+                lowLatencyMode: true,
+                backBufferLength: 90
+            });
+            
+            // Bind HLS to video element
+            hls.loadSource(proxyUrl);
+            hls.attachMedia(videoPlayer);
+            
+            // HLS Events
+            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                logToConsole('Manifest parsed successfully');
+                loadingIndicator.style.display = 'none';
+                
+                // Attempt to play
+                attemptPlay();
+            });
+            
+            hls.on(Hls.Events.MEDIA_ATTACHED, function() {
+                logToConsole('Media attached to player');
+            });
+            
+            hls.on(Hls.Events.FRAG_LOADED, function(event, data) {
+                updateConnectionStatus('connected');
+                reconnectAttempts = 0; // Reset reconnect attempts on successful load
+            });
+            
+            // Error handling
+            hls.on(Hls.Events.ERROR, function(event, data) {
+                logToConsole(`HLS error: Type=${data.type}, Details=${data.details}`, LOG_LEVELS.ERROR);
+                
+                if (data.fatal) {
+                    switch(data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            logToConsole('Fatal network error, trying to recover', LOG_LEVELS.WARNING);
+                            updateConnectionStatus('reconnecting');
+                            
+                            if (reconnectAttempts < maxReconnectAttempts) {
+                                reconnectAttempts++;
+                                logToConsole(`Reconnect attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
+                                setTimeout(() => {
+                                    hls.startLoad();
+                                }, 1000 * reconnectAttempts); // Increase delay with each attempt
+                            } else {
+                                showError('Network error: Cannot load the stream after multiple attempts. Please check your connection or try again later.');
+                            }
+                            break;
+                            
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            logToConsole('Fatal media error, trying to recover', LOG_LEVELS.WARNING);
+                            updateConnectionStatus('reconnecting');
+                            hls.recoverMediaError();
+                            break;
+                            
+                        default:
+                            logToConsole('Fatal error, cannot recover', LOG_LEVELS.ERROR);
+                            showError('Stream error: Cannot play the content. Please try a different quality or reload the page.');
+                            hls.destroy();
+                            break;
+                    }
+                }
+            });
+        }
+        
+        // Initialize with native HLS support (Safari)
+        function initNativeHls(quality) {
+            updateConnectionStatus('connecting');
+            
+            const proxyUrl = `${proxyBaseUrl}/proxy/playlist/${quality}`;
+            videoPlayer.src = proxyUrl;
+            
+            videoPlayer.addEventListener('loadedmetadata', function() {
+                logToConsole('Metadata loaded (native player)');
+                loadingIndicator.style.display = 'none';
+                attemptPlay();
+            });
+            
+            videoPlayer.addEventListener('error', function(e) {
+                const error = videoPlayer.error;
+                const errorMsg = error ? `code=${error.code}, message=${error.message}` : 'unknown error';
+                logToConsole(`Video playback error: ${errorMsg}`, LOG_LEVELS.ERROR);
+                showError('Stream error: Cannot play the content in your browser.');
+            });
+        }
+        
+        // Attempt to play the video
+        function attemptPlay() {
+            logToConsole('Attempting playback');
+            const playPromise = videoPlayer.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    isPlaying = true;
+                    logToConsole('Playback started successfully');
+                    updateConnectionStatus('connected');
+                }).catch(error => {
+                    logToConsole(`Autoplay prevented: ${error.message}`, LOG_LEVELS.WARNING);
+                    // Show play button overlay for user interaction
+                    showPlayButton();
+                });
+            } else {
+                // For browsers that don't return a promise
+                logToConsole('Play initiated (no promise returned)');
+                // Still show play button in case it fails silently
+                setTimeout(() => {
+                    if (!isPlaying) {
+                        showPlayButton();
+                    }
+                }, 1000);
+            }
+        }
+        
+        // Show error message
         function showError(message) {
             loadingIndicator.style.display = 'none';
+            playOverlay.style.display = 'none';
             playerError.style.display = 'block';
             errorMessage.textContent = message;
             updateConnectionStatus('error');
+            logToConsole(`Error: ${message}`, LOG_LEVELS.ERROR);
         }
-
+        
+        // Show play button for browsers that block autoplay
         function showPlayButton() {
             loadingIndicator.style.display = 'none';
-
+            playerError.style.display = 'none';
+            playOverlay.style.display = 'flex';
             updateConnectionStatus('ready');
+            logToConsole('Waiting for user interaction to play');
         }
-
+        
+        // Update connection status indicator
         function updateConnectionStatus(status) {
             switch(status) {
+                case 'initializing':
+                    connectionStatus.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Initializing...';
+                    connectionStatus.style.color = '#b0b0b0';
+                    break;
                 case 'connecting':
                     connectionStatus.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Connecting...';
                     connectionStatus.style.color = '#fb8c00';
@@ -612,18 +867,22 @@
                     break;
             }
         }
-
+        
+        // Fetch and update server status
         async function updateServerStatus() {
             try {
+                logToConsole('Fetching server status');
                 const response = await fetch(`${proxyBaseUrl}/health`);
                 if (response.ok) {
                     const data = await response.json();
-
+                    logToConsole(`Server status: ${data.status}`);
+                    
+                    // Update status indicator
                     const serverStatusEl = document.getElementById('server-status');
                     const statusIndicator = serverStatusEl.previousElementSibling;
-
+                    
                     serverStatusEl.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
-
+                    
                     if (data.status === 'healthy') {
                         statusIndicator.className = 'status-indicator status-healthy';
                     } else if (data.status === 'degraded') {
@@ -631,25 +890,30 @@
                     } else {
                         statusIndicator.className = 'status-indicator status-error';
                     }
-
+                    
+                    // Update other status information
                     document.getElementById('server-uptime').textContent = data.uptime;
                     document.getElementById('cached-segments').textContent = data.cache_stats.segments;
                     document.getElementById('cached-playlists').textContent = data.cache_stats.playlists;
-
+                    
                     return true;
                 } else {
-                    console.error('Failed to fetch server status:', response.status);
+                    logToConsole(`Failed to fetch server status: ${response.status}`, LOG_LEVELS.ERROR);
                     return false;
                 }
             } catch (error) {
-                console.error('Error fetching server status:', error);
+                logToConsole(`Error fetching server status: ${error.message}`, LOG_LEVELS.ERROR);
                 return false;
             }
         }
-
+        
+        // Event Listeners
+        
+        // Quality selection
         qualityButtons.forEach(button => {
             button.addEventListener('click', () => {
                 const quality = button.dataset.quality;
+                logToConsole(`Quality button clicked: ${quality}`);
                 if (quality !== currentQuality) {
                     updateConnectionStatus('connecting');
                     reconnectAttempts = 0;
@@ -657,52 +921,156 @@
                 }
             });
         });
-
+        
+        // Retry button
         retryButton.addEventListener('click', () => {
+            logToConsole('Retry button clicked');
             updateConnectionStatus('connecting');
             reconnectAttempts = 0;
             initPlayer(currentQuality);
         });
-
+        
+        // Play overlay
+        playOverlay.addEventListener('click', () => {
+            logToConsole('Play button clicked');
+            playOverlay.style.display = 'none';
+            attemptPlay();
+        });
+        
+        // Refresh status button
         refreshStatusButton.addEventListener('click', async () => {
+            logToConsole('Refreshing server status');
             refreshStatusButton.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Refreshing...';
             const success = await updateServerStatus();
-
+            
             setTimeout(() => {
                 refreshStatusButton.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
             }, 500);
+            
+            if (!success) {
+                logToConsole('Status refresh failed', LOG_LEVELS.WARNING);
+            }
         });
-
+        
+        // Collapsible sections
         collapsibles.forEach(collapsible => {
             const header = collapsible.querySelector('.collapsible-header');
             header.addEventListener('click', () => {
                 collapsible.classList.toggle('open');
             });
         });
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            updateConnectionStatus('connecting');
-
-            const serverAvailable = await updateServerStatus();
-
-            if (serverAvailable) {
-
-                initPlayer(currentQuality);
-
-                statusCheckInterval = setInterval(updateServerStatus, 30000); 
-            } else {
-                showError('Cannot connect to streaming server. Please try again later.');
+        
+        // Video player events
+        videoPlayer.addEventListener('playing', () => {
+            logToConsole('Video is playing');
+            isPlaying = true;
+            updateConnectionStatus('connected');
+        });
+        
+        videoPlayer.addEventListener('pause', () => {
+            logToConsole('Video paused');
+            if (!videoPlayer.ended) {
+                updateConnectionStatus('ready');
             }
         });
-
+        
+        videoPlayer.addEventListener('waiting', () => {
+            logToConsole('Video buffering');
+            updateConnectionStatus('connecting');
+        });
+        
+        videoPlayer.addEventListener('error', (e) => {
+            const error = videoPlayer.error;
+            const errorCode = error ? error.code : 'unknown';
+            const errorMessage = error ? error.message : 'Unknown error';
+            logToConsole(`Video error: code=${errorCode}, message=${errorMessage}`, LOG_LEVELS.ERROR);
+            
+            showError(`Video playback error: ${errorMessage || 'Could not play the video'}`);
+        });
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            logToConsole('Page loaded, initializing player');
+            updateConnectionStatus('initializing');
+            
+            // Open debug console by default in development
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                document.querySelectorAll('.collapsible')[1].classList.add('open');
+            }
+            
+            // Initial server status check
+            try {
+                const serverAvailable = await updateServerStatus();
+                
+                if (serverAvailable) {
+                    // Start the player
+                    initPlayer(currentQuality);
+                    
+                    // Set up periodic status checks
+                    statusCheckInterval = setInterval(updateServerStatus, 30000); // Every 30 seconds
+                } else {
+                    showError('Cannot connect to streaming server. Please try again later.');
+                }
+            } catch (error) {
+                logToConsole(`Initialization error: ${error.message}`, LOG_LEVELS.ERROR);
+                showError('Error initializing the player. Please refresh the page or try again later.');
+            }
+        });
+        
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                logToConsole('Page is now visible');
+                // If we were playing before, try to resume
+                if (isPlaying && videoPlayer.paused) {
+                    logToConsole('Attempting to resume playback');
+                    attemptPlay();
+                }
+                
+                // Refresh status
+                updateServerStatus();
+            } else {
+                logToConsole('Page is now hidden');
+                // You might want to pause when tab is not visible to save bandwidth
+                // videoPlayer.pause();
+            }
+        });
+        
+        // Handle network status changes
+        window.addEventListener('online', () => {
+            logToConsole('Network is online');
+            if (hls && reconnectAttempts > 0) {
+                logToConsole('Restarting stream after network reconnection');
+                reconnectAttempts = 0;
+                hls.startLoad();
+            }
+        });
+        
+        window.addEventListener('offline', () => {
+            logToConsole('Network is offline', LOG_LEVELS.WARNING);
+            updateConnectionStatus('error');
+        });
+        
+        // Clean up on page unload
         window.addEventListener('beforeunload', () => {
+            logToConsole('Page unloading, cleaning up');
             if (statusCheckInterval) {
                 clearInterval(statusCheckInterval);
             }
-
+            
             if (hls) {
                 hls.destroy();
             }
+        });
+        
+        // Handle errors globally
+        window.addEventListener('error', (event) => {
+            logToConsole(`Global error: ${event.message} at ${event.filename}:${event.lineno}`, LOG_LEVELS.ERROR);
+        });
+        
+        // Handle promise rejections
+        window.addEventListener('unhandledrejection', (event) => {
+            logToConsole(`Unhandled promise rejection: ${event.reason}`, LOG_LEVELS.ERROR);
         });
     </script>
 </body>
