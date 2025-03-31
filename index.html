@@ -3,1074 +3,696 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreamFly Player</title>
-    
-    <!-- HLS.js for stream playback -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.10/dist/hls.min.js"></script>
-    
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
+    <title>Stream Player</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary-color: #3a86ff;
-            --secondary-color: #8338ec;
-            --background-color: #121212;
-            --surface-color: #1e1e1e;
-            --text-color: #ffffff;
-            --text-secondary: #b0b0b0;
-            --error-color: #ff5252;
-            --success-color: #4caf50;
-            --warning-color: #fb8c00;
-        }
-
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-family: 'Roboto', sans-serif;
         }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
-            line-height: 1.6;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        header {
-            background-color: rgba(0, 0, 0, 0.5);
-            padding: 1rem;
-            position: fixed;
+        
+        body, html {
             width: 100%;
-            top: 0;
-            z-index: 100;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0f0f0f;
+            color: white;
         }
-
-        .logo {
-            font-size: 1.5rem;
-            font-weight: 700;
-            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .logo i {
-            font-size: 1.2rem;
-        }
-
-        main {
-            flex: 1;
-            padding: 5rem 1rem 1rem 1rem;
-            max-width: 1600px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        .player-container {
+        
+        .player-wrapper {
             position: relative;
             width: 100%;
-            background-color: var(--surface-color);
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-            margin-bottom: 1rem;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
-
+        
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+        }
+        
         video {
             width: 100%;
-            height: auto;
-            display: block;
-            background-color: #000;
-            aspect-ratio: 16/9;
+            height: 100%;
+            object-fit: contain;
         }
-
+        
         .controls-overlay {
             position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
-            padding: 1rem;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             opacity: 0;
             transition: opacity 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            z-index: 10;
         }
-
-        .player-container:hover .controls-overlay {
+        
+        .video-container:hover .controls-overlay {
             opacity: 1;
         }
-
-        .quality-controls {
+        
+        .control-group {
             display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-            margin-top: 1rem;
+            align-items: center;
+        }
+        
+        .control-button {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 16px;
+            margin: 0 5px;
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            display: flex;
             justify-content: center;
-        }
-
-        .quality-btn {
-            background-color: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: var(--text-color);
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-weight: 500;
-            display: flex;
             align-items: center;
-            gap: 0.5rem;
-        }
-
-        .quality-btn:hover {
-            background-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .quality-btn.active {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        .status-container {
-            background-color: var(--surface-color);
-            border-radius: 12px;
-            padding: 1rem;
-            margin-top: 1rem;
-        }
-
-        .status-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding-bottom: 0.5rem;
-        }
-
-        .status-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-        }
-
-        .refresh-btn {
-            background: none;
-            border: none;
-            color: var(--primary-color);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-            font-size: 0.9rem;
-        }
-
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 1rem;
-        }
-
-        .status-card {
-            background-color: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            padding: 1rem;
-        }
-
-        .status-card-title {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            margin-bottom: 0.5rem;
-        }
-
-        .status-card-value {
-            font-size: 1.1rem;
-            font-weight: 500;
-        }
-
-        .status-indicator {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
             border-radius: 50%;
-            margin-right: 0.5rem;
+            transition: background-color 0.2s ease;
         }
-
-        .status-healthy {
-            background-color: var(--success-color);
+        
+        .control-button:hover {
+            background-color: rgba(255,255,255,0.2);
         }
-
-        .status-degraded {
-            background-color: var(--warning-color);
-        }
-
-        .status-error {
-            background-color: var(--error-color);
-        }
-
-        .loading-indicator {
+        
+        .quality-menu {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1rem;
-            z-index: 10;
-        }
-
-        .spinner {
-            width: 48px;
-            height: 48px;
-            border: 5px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: var(--primary-color);
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .loading-text {
-            font-size: 1rem;
-            color: var(--text-secondary);
-        }
-
-        .player-error {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 1rem 2rem;
-            border-radius: 8px;
-            text-align: center;
-            max-width: 80%;
-            z-index: 10;
-        }
-
-        .error-title {
-            color: var(--error-color);
-            font-size: 1.2rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .retry-btn {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
+            bottom: 50px;
+            right: 10px;
+            background: rgba(28, 28, 28, 0.9);
             border-radius: 4px;
-            margin-top: 1rem;
-            cursor: pointer;
-            transition: background-color 0.2s;
+            padding: 8px 0;
+            display: none;
+            flex-direction: column;
+            min-width: 100px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            z-index: 20;
         }
-
-        .retry-btn:hover {
-            background-color: #2a75e8;
-        }
-
-        footer {
-            text-align: center;
-            padding: 1rem;
-            background-color: var(--surface-color);
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        /* Mobile optimizations */
-        @media (max-width: 768px) {
-            header {
-                padding: 0.75rem;
-            }
-            
-            .logo {
-                font-size: 1.2rem;
-            }
-            
-            main {
-                padding-top: 4rem;
-            }
-            
-            .status-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .quality-controls {
-                justify-content: center;
-            }
-            
-            .quality-btn {
-                padding: 0.4rem 0.8rem;
-                font-size: 0.9rem;
-            }
-        }
-
-        /* Collapsible sections for mobile */
-        .collapsible {
-            margin-top: 1rem;
-        }
-
-        .collapsible-header {
-            background-color: var(--surface-color);
-            border-radius: 12px;
-            padding: 1rem;
-            cursor: pointer;
+        
+        .quality-menu.visible {
             display: flex;
-            justify-content: space-between;
+        }
+        
+        .quality-option {
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            display: flex;
             align-items: center;
         }
-
-        .collapsible-title {
-            font-weight: 600;
+        
+        .quality-option:hover {
+            background-color: rgba(255,255,255,0.1);
         }
-
-        .collapsible-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-            background-color: var(--surface-color);
-            border-radius: 0 0 12px 12px;
-            margin-top: -12px;
+        
+        .quality-option.active {
+            color: #2196F3;
+            font-weight: 500;
         }
-
-        .collapsible.open .collapsible-content {
-            max-height: 1000px;
-            padding: 1rem;
+        
+        .quality-option.active::before {
+            content: "✓";
+            margin-right: 8px;
         }
-
-        .collapsible .fa-chevron-down {
-            transition: transform 0.3s ease;
+        
+        .progress-container {
+            flex-grow: 1;
+            height: 4px;
+            background-color: rgba(255,255,255,0.2);
+            margin: 0 10px;
+            position: relative;
+            cursor: pointer;
+            border-radius: 2px;
         }
-
-        .collapsible.open .fa-chevron-down {
-            transform: rotate(180deg);
+        
+        .progress-bar {
+            height: 100%;
+            background-color: #2196F3;
+            width: 0;
+            position: relative;
+            border-radius: 2px;
         }
-
-        /* Play button overlay */
-        .play-overlay {
+        
+        .progress-handle {
+            position: absolute;
+            right: -6px;
+            top: 50%;
+            width: 12px;
+            height: 12px;
+            background-color: #2196F3;
+            border-radius: 50%;
+            transform: translateY(-50%);
+            display: none;
+        }
+        
+        .progress-container:hover .progress-handle {
+            display: block;
+        }
+        
+        .timestamp {
+            font-size: 14px;
+            color: rgba(255,255,255,0.8);
+            margin: 0 5px;
+            min-width: 100px;
+            text-align: center;
+        }
+        
+        .loading-overlay {
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
+            right: 0;
+            bottom: 0;
             display: flex;
             justify-content: center;
             align-items: center;
-            cursor: pointer;
-            z-index: 20;
+            background-color: rgba(0,0,0,0.6);
+            z-index: 30;
         }
-
-        .play-button {
-            width: 80px;
-            height: 80px;
-            background-color: rgba(255, 255, 255, 0.2);
+        
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255,255,255,0.3);
             border-radius: 50%;
-            display: flex;
+            border-top-color: #2196F3;
+            animation: spin 1s linear infinite;
+        }
+        
+        .error-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: none;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            transition: all 0.3s ease;
+            background-color: rgba(0,0,0,0.8);
+            z-index: 40;
+            padding: 20px;
+            text-align: center;
         }
-
-        .play-button i {
-            font-size: 40px;
+        
+        .error-icon {
+            font-size: 48px;
+            color: #f44336;
+            margin-bottom: 16px;
+        }
+        
+        .error-message {
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .retry-button {
+            background-color: #2196F3;
             color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s ease;
         }
-
-        .play-overlay:hover .play-button {
-            background-color: rgba(255, 255, 255, 0.3);
-            transform: scale(1.1);
+        
+        .retry-button:hover {
+            background-color: #1976D2;
         }
-
-        /* Connection status styles */
-        #connection-status {
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            background-color: rgba(0, 0, 0, 0.3);
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
-
-        /* Debug console */
-        .debug-console {
-            background-color: var(--surface-color);
-            border-radius: 12px;
-            padding: 1rem;
-            margin-top: 1rem;
-            max-height: 200px;
-            overflow-y: auto;
-            font-family: monospace;
-            font-size: 0.9rem;
+        
+        .buffering-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0,0,0,0.6);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
         }
-
-        .debug-entry {
-            margin-bottom: 0.5rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding-bottom: 0.5rem;
-        }
-
-        .debug-time {
-            color: var(--text-secondary);
-            margin-right: 0.5rem;
-        }
-
-        .debug-info {
-            color: var(--primary-color);
-        }
-
-        .debug-error {
-            color: var(--error-color);
-        }
-
-        .debug-warning {
-            color: var(--warning-color);
+        
+        /* Icons */
+        .icon {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
         }
     </style>
 </head>
 <body>
-    <header>
-        <div class="logo">
-            <i class="fas fa-stream"></i>
-            <span>StreamFly</span>
-        </div>
-        <div id="connection-status">
-            <i class="fas fa-circle-notch fa-spin"></i> Initializing...
-        </div>
-    </header>
-
-    <main>
-        <div class="player-container">
-            <video id="video-player" controls playsinline></video>
+    <div class="player-wrapper">
+        <div class="video-container">
+            <video id="video" playsinline></video>
             
-            <div id="loading" class="loading-indicator">
-                <div class="spinner"></div>
-                <div class="loading-text">Loading stream...</div>
-            </div>
-            
-            <div id="player-error" class="player-error" style="display: none;">
-                <div class="error-title">Stream Error</div>
-                <div id="error-message">Failed to load the stream.</div>
-                <button id="retry-button" class="retry-btn">
-                    <i class="fas fa-redo"></i> Retry
-                </button>
-            </div>
-            
-            <div id="play-overlay" class="play-overlay" style="display: none;">
-                <div class="play-button">
-                    <i class="fas fa-play"></i>
-                </div>
-            </div>
-        </div>
-
-        <div class="quality-controls">
-            <button class="quality-btn" data-quality="1080p">
-                <i class="fas fa-tv"></i> 1080p
-            </button>
-            <button class="quality-btn active" data-quality="720p">
-                <i class="fas fa-desktop"></i> 720p
-            </button>
-            <button class="quality-btn" data-quality="480p">
-                <i class="fas fa-tablet-alt"></i> 480p
-            </button>
-            <button class="quality-btn" data-quality="360p">
-                <i class="fas fa-mobile-alt"></i> 360p
-            </button>
-        </div>
-
-        <div class="collapsible">
-            <div class="collapsible-header">
-                <div class="collapsible-title">Stream Status</div>
-                <i class="fas fa-chevron-down"></i>
-            </div>
-            <div class="collapsible-content">
-                <div class="status-header">
-                    <div class="status-title">Proxy Server Status</div>
-                    <button id="refresh-status" class="refresh-btn">
-                        <i class="fas fa-sync-alt"></i> Refresh
+            <div class="controls-overlay">
+                <div class="control-group">
+                    <button class="control-button" id="play-pause">
+                        <svg class="icon" id="play-icon" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                        <svg class="icon" id="pause-icon" viewBox="0 0 24 24" style="display: none;">
+                            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                        </svg>
                     </button>
-                </div>
-                <div class="status-grid" id="status-grid">
-                    <div class="status-card">
-                        <div class="status-card-title">Server Status</div>
-                        <div class="status-card-value">
-                            <span class="status-indicator"></span>
-                            <span id="server-status">Loading...</span>
+                    
+                    <div class="timestamp" id="timestamp">00:00 / 00:00</div>
+                    
+                    <div class="progress-container" id="progress-container">
+                        <div class="progress-bar" id="progress-bar">
+                            <div class="progress-handle"></div>
                         </div>
                     </div>
-                    <div class="status-card">
-                        <div class="status-card-title">Uptime</div>
-                        <div class="status-card-value" id="server-uptime">--:--:--</div>
-                    </div>
-                    <div class="status-card">
-                        <div class="status-card-title">Cached Segments</div>
-                        <div class="status-card-value" id="cached-segments">0</div>
-                    </div>
-                    <div class="status-card">
-                        <div class="status-card-title">Cached Playlists</div>
-                        <div class="status-card-value" id="cached-playlists">0</div>
-                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <button class="control-button" id="mute-toggle">
+                        <svg class="icon" id="volume-icon" viewBox="0 0 24 24">
+                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                        </svg>
+                        <svg class="icon" id="mute-icon" viewBox="0 0 24 24" style="display: none;">
+                            <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                        </svg>
+                    </button>
+                    
+                    <button class="control-button" id="quality-toggle">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7.5 13h2v2H11V9H9.5v2.5h-2V9H6v6h1.5zm6.5 2h.75v1.5h1.5V15H17c.55 0 1-.45 1-1v-4c0-.55-.45-1-1-1h-3c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1zm.5-4.5h2v3h-2v-3z"/>
+                        </svg>
+                    </button>
+                    
+                    <button class="control-button" id="fullscreen-toggle">
+                        <svg class="icon" id="fullscreen-icon" viewBox="0 0 24 24">
+                            <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                        </svg>
+                        <svg class="icon" id="exit-fullscreen-icon" viewBox="0 0 24 24" style="display: none;">
+                            <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
-        </div>
-
-        <div class="collapsible">
-            <div class="collapsible-header">
-                <div class="collapsible-title">Debug Console</div>
-                <i class="fas fa-chevron-down"></i>
+            
+            <div class="quality-menu" id="quality-menu">
+                <div class="quality-option" data-quality="1080p">1080p</div>
+                <div class="quality-option" data-quality="720p">720p</div>
+                <div class="quality-option" data-quality="480p">480p</div>
+                <div class="quality-option" data-quality="360p">360p</div>
             </div>
-            <div class="collapsible-content">
-                <div id="debug-console" class="debug-console">
-                    <!-- Debug messages will be added here -->
-                </div>
+            
+            <div class="loading-overlay" id="loading-overlay">
+                <div class="spinner"></div>
             </div>
+            
+            <div class="error-overlay" id="error-overlay">
+                <div class="error-icon">⚠️</div>
+                <div class="error-message" id="error-message">An error occurred while loading the stream.</div>
+                <button class="retry-button" id="retry-button">Try Again</button>
+            </div>
+            
+            <div class="buffering-indicator" id="buffering-indicator">Buffering...</div>
         </div>
-    </main>
-
-    <footer>
-        &copy; 2023 StreamFly | Optimized HLS Streaming
-    </footer>
-
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script>
-        // Configuration
-        const proxyBaseUrl = 'https://cstream-fly.onrender.com';
-        let currentQuality = '720p';
-        let hls = null;
-        let isPlaying = false;
-        let statusCheckInterval = null;
-        let reconnectAttempts = 0;
-        const maxReconnectAttempts = 5;
-        
-        // Debug console
-        const debugConsole = document.getElementById('debug-console');
-        
-        // Log levels for debug console
-        const LOG_LEVELS = {
-            INFO: 'info',
-            ERROR: 'error',
-            WARNING: 'warning'
-        };
-        
-        // Add a log entry to debug console
-        function logToConsole(message, level = LOG_LEVELS.INFO) {
-            const now = new Date();
-            const timeString = now.toTimeString().split(' ')[0];
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elements
+            const video = document.getElementById('video');
+            const playPauseBtn = document.getElementById('play-pause');
+            const playIcon = document.getElementById('play-icon');
+            const pauseIcon = document.getElementById('pause-icon');
+            const muteToggle = document.getElementById('mute-toggle');
+            const volumeIcon = document.getElementById('volume-icon');
+            const muteIcon = document.getElementById('mute-icon');
+            const fullscreenToggle = document.getElementById('fullscreen-toggle');
+            const fullscreenIcon = document.getElementById('fullscreen-icon');
+            const exitFullscreenIcon = document.getElementById('exit-fullscreen-icon');
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
+            const timestamp = document.getElementById('timestamp');
+            const qualityToggle = document.getElementById('quality-toggle');
+            const qualityMenu = document.getElementById('quality-menu');
+            const qualityOptions = document.querySelectorAll('.quality-option');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const errorOverlay = document.getElementById('error-overlay');
+            const errorMessage = document.getElementById('error-message');
+            const retryButton = document.getElementById('retry-button');
+            const bufferingIndicator = document.getElementById('buffering-indicator');
+            const videoContainer = document.querySelector('.video-container');
             
-            const logEntry = document.createElement('div');
-            logEntry.className = 'debug-entry';
+            // State
+            let currentQuality = '720p'; // Default quality
+            let hls = null;
+            let isFullscreen = false;
+            let inactivityTimer;
+            const proxyBaseUrl = 'https://cstream-fly.onrender.com';
             
-            const timeSpan = document.createElement('span');
-            timeSpan.className = 'debug-time';
-            timeSpan.textContent = timeString;
+            // Initialize quality menu
+            updateQualityMenu();
             
-            const messageSpan = document.createElement('span');
-            messageSpan.className = `debug-${level}`;
-            messageSpan.textContent = message;
-            
-            logEntry.appendChild(timeSpan);
-            logEntry.appendChild(messageSpan);
-            
-            debugConsole.appendChild(logEntry);
-            
-            // Auto-scroll to bottom
-            debugConsole.scrollTop = debugConsole.scrollHeight;
-            
-            // Limit number of entries
-            if (debugConsole.children.length > 50) {
-                debugConsole.removeChild(debugConsole.children[0]);
-            }
-            
-            // Also log to browser console
-            if (level === LOG_LEVELS.ERROR) {
-                console.error(message);
-            } else if (level === LOG_LEVELS.WARNING) {
-                console.warn(message);
-            } else {
-                console.log(message);
-            }
-        }
-        
-        // DOM Elements
-        const videoPlayer = document.getElementById('video-player');
-        const loadingIndicator = document.getElementById('loading');
-        const playerError = document.getElementById('player-error');
-        const errorMessage = document.getElementById('error-message');
-        const retryButton = document.getElementById('retry-button');
-        const qualityButtons = document.querySelectorAll('.quality-btn');
-        const refreshStatusButton = document.getElementById('refresh-status');
-        const connectionStatus = document.getElementById('connection-status');
-        const collapsibles = document.querySelectorAll('.collapsible');
-        const playOverlay = document.getElementById('play-overlay');
-        
-        // Initialize HLS Player
-        function initPlayer(quality) {
-            currentQuality = quality;
-            
-            // Clean up existing player if any
-            if (hls) {
-                hls.destroy();
-                hls = null;
-                logToConsole('Destroyed previous HLS instance');
-            }
-            
-            // Reset player state
-            videoPlayer.pause();
-            videoPlayer.removeAttribute('src');
-            videoPlayer.load();
-            
-            // Show loading indicator, hide other overlays
-            loadingIndicator.style.display = 'flex';
-            playerError.style.display = 'none';
-            playOverlay.style.display = 'none';
-            
-            // Set active quality button
-            qualityButtons.forEach(btn => {
-                if (btn.dataset.quality === quality) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
-            
-            logToConsole(`Initializing player with quality: ${quality}`);
-            
-            // Check if HLS is supported
-            if (!Hls.isSupported()) {
-                // Try native playback
-                if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
-                    logToConsole('Using native HLS playback (Safari/iOS)');
-                    initNativeHls(quality);
-                } else {
-                    showError('Your browser does not support HLS streaming. Please use a modern browser like Chrome, Firefox, or Safari.');
-                    logToConsole('Browser does not support HLS', LOG_LEVELS.ERROR);
-                }
-                return;
-            }
-            
-            // Using HLS.js
-            try {
-                const proxyUrl = `${proxyBaseUrl}/proxy/playlist/${quality}`;
-                logToConsole(`Loading playlist from: ${proxyUrl}`);
+            // Function to load the stream
+            function loadStream(quality) {
+                // Show loading overlay
+                loadingOverlay.style.display = 'flex';
+                errorOverlay.style.display = 'none';
                 
-                // Check if proxy is reachable
-                fetch(`${proxyBaseUrl}/health`)
-                    .then(response => {
-                        if (response.ok) {
-                            logToConsole('Proxy server is reachable');
-                            initHlsJs(proxyUrl);
-                        } else {
-                            showError(`Proxy server returned status: ${response.status}`);
-                            logToConsole(`Proxy server error: ${response.status}`, LOG_LEVELS.ERROR);
-                        }
-                    })
-                    .catch(error => {
-                        showError('Cannot connect to proxy server. Please check your connection or try again later.');
-                        logToConsole(`Proxy connection error: ${error.message}`, LOG_LEVELS.ERROR);
+                // Destroy previous Hls instance if it exists
+                if (hls) {
+                    hls.destroy();
+                }
+                
+                if (Hls.isSupported()) {
+                    hls = new Hls({
+                        debug: false,
+                        enableWorker: true,
+                        lowLatencyMode: true,
+                        backBufferLength: 90,
+                        maxBufferLength: 30,
+                        maxMaxBufferLength: 60
                     });
-            } catch (error) {
-                showError(`Failed to initialize player: ${error.message}`);
-                logToConsole(`Initialization error: ${error.message}`, LOG_LEVELS.ERROR);
-            }
-        }
-        
-        // Initialize with HLS.js
-        function initHlsJs(proxyUrl) {
-            updateConnectionStatus('connecting');
-            
-            hls = new Hls({
-                debug: false,
-                maxBufferLength: 30,
-                maxMaxBufferLength: 60,
-                enableWorker: true,
-                fragLoadingMaxRetry: 5,
-                manifestLoadingMaxRetry: 5,
-                levelLoadingMaxRetry: 5,
-                startLevel: -1, // Auto
-                maxBufferHole: 0.5,
-                lowLatencyMode: true,
-                backBufferLength: 90
-            });
-            
-            // Bind HLS to video element
-            hls.loadSource(proxyUrl);
-            hls.attachMedia(videoPlayer);
-            
-            // HLS Events
-            hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                logToConsole('Manifest parsed successfully');
-                loadingIndicator.style.display = 'none';
-                
-                // Attempt to play
-                attemptPlay();
-            });
-            
-            hls.on(Hls.Events.MEDIA_ATTACHED, function() {
-                logToConsole('Media attached to player');
-            });
-            
-            hls.on(Hls.Events.FRAG_LOADED, function(event, data) {
-                updateConnectionStatus('connected');
-                reconnectAttempts = 0; // Reset reconnect attempts on successful load
-            });
-            
-            // Error handling
-            hls.on(Hls.Events.ERROR, function(event, data) {
-                logToConsole(`HLS error: Type=${data.type}, Details=${data.details}`, LOG_LEVELS.ERROR);
-                
-                if (data.fatal) {
-                    switch(data.type) {
-                        case Hls.ErrorTypes.NETWORK_ERROR:
-                            logToConsole('Fatal network error, trying to recover', LOG_LEVELS.WARNING);
-                            updateConnectionStatus('reconnecting');
-                            
-                            if (reconnectAttempts < maxReconnectAttempts) {
-                                reconnectAttempts++;
-                                logToConsole(`Reconnect attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
-                                setTimeout(() => {
+                    
+                    const playlistUrl = `${proxyBaseUrl}/proxy/playlist/${quality}`;
+                    console.log("Loading playlist:", playlistUrl);
+                    
+                    hls.loadSource(playlistUrl);
+                    hls.attachMedia(video);
+                    
+                    hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                        console.log('Manifest parsed, trying to play');
+                        loadingOverlay.style.display = 'none';
+                        
+                        // Try to play
+                        const playPromise = video.play();
+                        if (playPromise !== undefined) {
+                            playPromise.then(() => {
+                                // Playback started successfully
+                                updatePlayPauseButton();
+                            }).catch(err => {
+                                console.error('Playback failed:', err);
+                                // Auto-play was prevented, show play button
+                                updatePlayPauseButton();
+                            });
+                        }
+                    });
+                    
+                    // Handle errors
+                    hls.on(Hls.Events.ERROR, function(event, data) {
+                        console.error('HLS error:', data);
+                        if (data.fatal) {
+                            switch(data.type) {
+                                case Hls.ErrorTypes.NETWORK_ERROR:
+                                    console.log('Network error, trying to recover...');
                                     hls.startLoad();
-                                }, 1000 * reconnectAttempts); // Increase delay with each attempt
-                            } else {
-                                showError('Network error: Cannot load the stream after multiple attempts. Please check your connection or try again later.');
+                                    break;
+                                case Hls.ErrorTypes.MEDIA_ERROR:
+                                    console.log('Media error, trying to recover...');
+                                    hls.recoverMediaError();
+                                    break;
+                                default:
+                                    console.error('Fatal error, cannot recover');
+                                    showError('Stream error. Please try again or select a different quality.');
+                                    break;
                             }
-                            break;
-                            
-                        case Hls.ErrorTypes.MEDIA_ERROR:
-                            logToConsole('Fatal media error, trying to recover', LOG_LEVELS.WARNING);
-                            updateConnectionStatus('reconnecting');
-                            hls.recoverMediaError();
-                            break;
-                            
-                        default:
-                            logToConsole('Fatal error, cannot recover', LOG_LEVELS.ERROR);
-                            showError('Stream error: Cannot play the content. Please try a different quality or reload the page.');
-                            hls.destroy();
-                            break;
-                    }
+                        }
+                    });
+                    
+                    // Handle buffering
+                    hls.on(Hls.Events.BUFFER_APPENDING, function() {
+                        bufferingIndicator.style.display = 'block';
+                    });
+                    
+                    hls.on(Hls.Events.FRAG_BUFFERED, function() {
+                        bufferingIndicator.style.display = 'none';
+                    });
+                    
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    // For Safari
+                    loadingOverlay.style.display = 'none';
+                    video.src = `${proxyBaseUrl}/proxy/playlist/${quality}`;
+                    video.addEventListener('loadedmetadata', function() {
+                        video.play().catch(err => {
+                            console.error('Playback failed:', err);
+                            updatePlayPauseButton();
+                        });
+                    });
+                } else {
+                    showError('Your browser does not support HLS playback');
+                    console.error('HLS is not supported in this browser');
                 }
-            });
-        }
-        
-        // Initialize with native HLS support (Safari)
-        function initNativeHls(quality) {
-            updateConnectionStatus('connecting');
-            
-            const proxyUrl = `${proxyBaseUrl}/proxy/playlist/${quality}`;
-            videoPlayer.src = proxyUrl;
-            
-            videoPlayer.addEventListener('loadedmetadata', function() {
-                logToConsole('Metadata loaded (native player)');
-                loadingIndicator.style.display = 'none';
-                attemptPlay();
-            });
-            
-            videoPlayer.addEventListener('error', function(e) {
-                const error = videoPlayer.error;
-                const errorMsg = error ? `code=${error.code}, message=${error.message}` : 'unknown error';
-                logToConsole(`Video playback error: ${errorMsg}`, LOG_LEVELS.ERROR);
-                showError('Stream error: Cannot play the content in your browser.');
-            });
-        }
-        
-        // Attempt to play the video
-        function attemptPlay() {
-            logToConsole('Attempting playback');
-            const playPromise = videoPlayer.play();
-            
-            if (playPromise !== undefined) {
-                playPromise.then(() => {
-                    isPlaying = true;
-                    logToConsole('Playback started successfully');
-                    updateConnectionStatus('connected');
-                }).catch(error => {
-                    logToConsole(`Autoplay prevented: ${error.message}`, LOG_LEVELS.WARNING);
-                    // Show play button overlay for user interaction
-                    showPlayButton();
-                });
-            } else {
-                // For browsers that don't return a promise
-                logToConsole('Play initiated (no promise returned)');
-                // Still show play button in case it fails silently
-                setTimeout(() => {
-                    if (!isPlaying) {
-                        showPlayButton();
-                    }
-                }, 1000);
+                
+                // Update active quality option
+                updateQualityMenu();
             }
-        }
-        
-        // Show error message
-        function showError(message) {
-            loadingIndicator.style.display = 'none';
-            playOverlay.style.display = 'none';
-            playerError.style.display = 'block';
-            errorMessage.textContent = message;
-            updateConnectionStatus('error');
-            logToConsole(`Error: ${message}`, LOG_LEVELS.ERROR);
-        }
-        
-        // Show play button for browsers that block autoplay
-        function showPlayButton() {
-            loadingIndicator.style.display = 'none';
-            playerError.style.display = 'none';
-            playOverlay.style.display = 'flex';
-            updateConnectionStatus('ready');
-            logToConsole('Waiting for user interaction to play');
-        }
-        
-        // Update connection status indicator
-        function updateConnectionStatus(status) {
-            switch(status) {
-                case 'initializing':
-                    connectionStatus.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Initializing...';
-                    connectionStatus.style.color = '#b0b0b0';
-                    break;
-                case 'connecting':
-                    connectionStatus.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Connecting...';
-                    connectionStatus.style.color = '#fb8c00';
-                    break;
-                case 'connected':
-                    connectionStatus.innerHTML = '<i class="fas fa-check-circle"></i> Connected';
-                    connectionStatus.style.color = '#4caf50';
-                    break;
-                case 'reconnecting':
-                    connectionStatus.innerHTML = '<i class="fas fa-sync fa-spin"></i> Reconnecting...';
-                    connectionStatus.style.color = '#fb8c00';
-                    break;
-                case 'error':
-                    connectionStatus.innerHTML = '<i class="fas fa-exclamation-circle"></i> Connection Error';
-                    connectionStatus.style.color = '#ff5252';
-                    break;
-                case 'ready':
-                    connectionStatus.innerHTML = '<i class="fas fa-pause-circle"></i> Ready (Click to Play)';
-                    connectionStatus.style.color = '#3a86ff';
-                    break;
-            }
-        }
-        
-        // Fetch and update server status
-        async function updateServerStatus() {
-            try {
-                logToConsole('Fetching server status');
-                const response = await fetch(`${proxyBaseUrl}/health`);
-                if (response.ok) {
-                    const data = await response.json();
-                    logToConsole(`Server status: ${data.status}`);
-                    
-                    // Update status indicator
-                    const serverStatusEl = document.getElementById('server-status');
-                    const statusIndicator = serverStatusEl.previousElementSibling;
-                    
-                    serverStatusEl.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
-                    
-                    if (data.status === 'healthy') {
-                        statusIndicator.className = 'status-indicator status-healthy';
-                    } else if (data.status === 'degraded') {
-                        statusIndicator.className = 'status-indicator status-degraded';
+            
+            function updateQualityMenu() {
+                qualityOptions.forEach(option => {
+                    if (option.dataset.quality === currentQuality) {
+                        option.classList.add('active');
                     } else {
-                        statusIndicator.className = 'status-indicator status-error';
+                        option.classList.remove('active');
                     }
-                    
-                    // Update other status information
-                    document.getElementById('server-uptime').textContent = data.uptime;
-                    document.getElementById('cached-segments').textContent = data.cache_stats.segments;
-                    document.getElementById('cached-playlists').textContent = data.cache_stats.playlists;
-                    
-                    return true;
-                } else {
-                    logToConsole(`Failed to fetch server status: ${response.status}`, LOG_LEVELS.ERROR);
-                    return false;
-                }
-            } catch (error) {
-                logToConsole(`Error fetching server status: ${error.message}`, LOG_LEVELS.ERROR);
-                return false;
+                });
             }
-        }
-        
-        // Event Listeners
-        
-        // Quality selection
-        qualityButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const quality = button.dataset.quality;
-                logToConsole(`Quality button clicked: ${quality}`);
-                if (quality !== currentQuality) {
-                    updateConnectionStatus('connecting');
-                    reconnectAttempts = 0;
-                    initPlayer(quality);
+            
+            function formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                seconds = Math.floor(seconds % 60);
+                return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+            
+            function updateProgressBar() {
+                if (video.duration) {
+                    const progress = (video.currentTime / video.duration) * 100;
+                    progressBar.style.width = `${progress}%`;
+                    
+                    // Update timestamp
+                    timestamp.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+                } else {
+                    timestamp.textContent = "Live";
+                }
+            }
+            
+            function updatePlayPauseButton() {
+                if (video.paused) {
+                    playIcon.style.display = 'block';
+                    pauseIcon.style.display = 'none';
+                } else {
+                    playIcon.style.display = 'none';
+                    pauseIcon.style.display = 'block';
+                }
+            }
+            
+            function togglePlay() {
+                if (video.paused) {
+                    video.play().catch(err => {
+                        console.error('Play failed:', err);
+                        showError('Playback failed. Please try again.');
+                    });
+                } else {
+                    video.pause();
+                }
+                updatePlayPauseButton();
+            }
+            
+            function toggleMute() {
+                video.muted = !video.muted;
+                if (video.muted) {
+                    volumeIcon.style.display = 'none';
+                    muteIcon.style.display = 'block';
+                } else {
+                    volumeIcon.style.display = 'block';
+                    muteIcon.style.display = 'none';
+                }
+            }
+            
+            function toggleFullscreen() {
+                if (!isFullscreen) {
+                    if (videoContainer.requestFullscreen) {
+                        videoContainer.requestFullscreen();
+                    } else if (videoContainer.webkitRequestFullscreen) {
+                        videoContainer.webkitRequestFullscreen();
+                    } else if (videoContainer.msRequestFullscreen) {
+                        videoContainer.msRequestFullscreen();
+                    }
+                    isFullscreen = true;
+                    fullscreenIcon.style.display = 'none';
+                    exitFullscreenIcon.style.display = 'block';
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    }
+                    isFullscreen = false;
+                    fullscreenIcon.style.display = 'block';
+                    exitFullscreenIcon.style.display = 'none';
+                }
+            }
+            
+            function showError(message) {
+                loadingOverlay.style.display = 'none';
+                errorOverlay.style.display = 'flex';
+                errorMessage.textContent = message;
+            }
+            
+            function resetInactivityTimer() {
+                clearTimeout(inactivityTimer);
+                document.body.style.cursor = 'default';
+                inactivityTimer = setTimeout(() => {
+                    if (!video.paused) {
+                        document.body.style.cursor = 'none';
+                    }
+                }, 3000);
+            }
+            
+            // Event listeners
+            playPauseBtn.addEventListener('click', togglePlay);
+            
+            muteToggle.addEventListener('click', toggleMute);
+            
+            fullscreenToggle.addEventListener('click', toggleFullscreen);
+            
+            qualityToggle.addEventListener('click', function(e) {
+                e.stopPropagation();
+                qualityMenu.classList.toggle('visible');
+            });
+            
+            // Hide quality menu when clicking elsewhere
+            document.addEventListener('click', function() {
+                qualityMenu.classList.remove('visible');
+            });
+            
+            qualityMenu.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (e.target.classList.contains('quality-option')) {
+                    const newQuality = e.target.dataset.quality;
+                    if (newQuality !== currentQuality) {
+                        currentQuality = newQuality;
+                        loadStream(currentQuality);
+                    }
+                    qualityMenu.classList.remove('visible');
                 }
             });
-        });
-        
-        // Retry button
-        retryButton.addEventListener('click', () => {
-            logToConsole('Retry button clicked');
-            updateConnectionStatus('connecting');
-            reconnectAttempts = 0;
-            initPlayer(currentQuality);
-        });
-        
-        // Play overlay
-        playOverlay.addEventListener('click', () => {
-            logToConsole('Play button clicked');
-            playOverlay.style.display = 'none';
-            attemptPlay();
-        });
-        
-        // Refresh status button
-        refreshStatusButton.addEventListener('click', async () => {
-            logToConsole('Refreshing server status');
-            refreshStatusButton.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Refreshing...';
-            const success = await updateServerStatus();
             
-            setTimeout(() => {
-                refreshStatusButton.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
-            }, 500);
-            
-            if (!success) {
-                logToConsole('Status refresh failed', LOG_LEVELS.WARNING);
-            }
-        });
-        
-        // Collapsible sections
-        collapsibles.forEach(collapsible => {
-            const header = collapsible.querySelector('.collapsible-header');
-            header.addEventListener('click', () => {
-                collapsible.classList.toggle('open');
+            progressContainer.addEventListener('click', function(e) {
+                const rect = progressContainer.getBoundingClientRect();
+                const pos = (e.clientX - rect.left) / rect.width;
+                video.currentTime = pos * video.duration;
             });
-        });
-        
-        // Video player events
-        videoPlayer.addEventListener('playing', () => {
-            logToConsole('Video is playing');
-            isPlaying = true;
-            updateConnectionStatus('connected');
-        });
-        
-        videoPlayer.addEventListener('pause', () => {
-            logToConsole('Video paused');
-            if (!videoPlayer.ended) {
-                updateConnectionStatus('ready');
-            }
-        });
-        
-        videoPlayer.addEventListener('waiting', () => {
-            logToConsole('Video buffering');
-            updateConnectionStatus('connecting');
-        });
-        
-        videoPlayer.addEventListener('error', (e) => {
-            const error = videoPlayer.error;
-            const errorCode = error ? error.code : 'unknown';
-            const errorMessage = error ? error.message : 'Unknown error';
-            logToConsole(`Video error: code=${errorCode}, message=${errorMessage}`, LOG_LEVELS.ERROR);
             
-            showError(`Video playback error: ${errorMessage || 'Could not play the video'}`);
-        });
-        
-        // Initialize
-        document.addEventListener('DOMContentLoaded', async () => {
-            logToConsole('Page loaded, initializing player');
-            updateConnectionStatus('initializing');
+            video.addEventListener('timeupdate', updateProgressBar);
             
-            // Open debug console by default in development
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                document.querySelectorAll('.collapsible')[1].classList.add('open');
-            }
+            video.addEventListener('play', updatePlayPauseButton);
+            video.addEventListener('pause', updatePlayPauseButton);
             
-            // Initial server status check
-            try {
-                const serverAvailable = await updateServerStatus();
-                
-                if (serverAvailable) {
-                    // Start the player
-                    initPlayer(currentQuality);
-                    
-                    // Set up periodic status checks
-                    statusCheckInterval = setInterval(updateServerStatus, 30000); // Every 30 seconds
+            // Handle fullscreen change
+            document.addEventListener('fullscreenchange', function() {
+                isFullscreen = !!document.fullscreenElement;
+                if (isFullscreen) {
+                    fullscreenIcon.style.display = 'none';
+                    exitFullscreenIcon.style.display = 'block';
                 } else {
-                    showError('Cannot connect to streaming server. Please try again later.');
+                    fullscreenIcon.style.display = 'block';
+                    exitFullscreenIcon.style.display = 'none';
                 }
-            } catch (error) {
-                logToConsole(`Initialization error: ${error.message}`, LOG_LEVELS.ERROR);
-                showError('Error initializing the player. Please refresh the page or try again later.');
-            }
-        });
-        
-        // Handle page visibility changes
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                logToConsole('Page is now visible');
-                // If we were playing before, try to resume
-                if (isPlaying && videoPlayer.paused) {
-                    logToConsole('Attempting to resume playback');
-                    attemptPlay();
-                }
-                
-                // Refresh status
-                updateServerStatus();
-            } else {
-                logToConsole('Page is now hidden');
-                // You might want to pause when tab is not visible to save bandwidth
-                // videoPlayer.pause();
-            }
-        });
-        
-        // Handle network status changes
-        window.addEventListener('online', () => {
-            logToConsole('Network is online');
-            if (hls && reconnectAttempts > 0) {
-                logToConsole('Restarting stream after network reconnection');
-                reconnectAttempts = 0;
-                hls.startLoad();
-            }
-        });
-        
-        window.addEventListener('offline', () => {
-            logToConsole('Network is offline', LOG_LEVELS.WARNING);
-            updateConnectionStatus('error');
-        });
-        
-        // Clean up on page unload
-        window.addEventListener('beforeunload', () => {
-            logToConsole('Page unloading, cleaning up');
-            if (statusCheckInterval) {
-                clearInterval(statusCheckInterval);
-            }
+            });
             
-            if (hls) {
-                hls.destroy();
-            }
-        });
-        
-        // Handle errors globally
-        window.addEventListener('error', (event) => {
-            logToConsole(`Global error: ${event.message} at ${event.filename}:${event.lineno}`, LOG_LEVELS.ERROR);
-        });
-        
-        // Handle promise rejections
-        window.addEventListener('unhandledrejection', (event) => {
-            logToConsole(`Unhandled promise rejection: ${event.reason}`, LOG_LEVELS.ERROR);
+            // Auto-reload stream if it stalls
+            video.addEventListener('stalled', function() {
+                console.log('Stream stalled, reloading...');
+                bufferingIndicator.style.display = 'block';
+                setTimeout(() => {
+                    if (hls) {
+                        hls.startLoad();
+                    }
+                }, 2000);
+            });
+            
+            // Handle waiting/buffering
+            video.addEventListener('waiting', function() {
+                bufferingIndicator.style.display = 'block';
+            });
+            
+            video.addEventListener('playing', function() {
+                bufferingIndicator.style.display = 'none';
+            });
+            
+            // Retry button
+            retryButton.addEventListener('click', function() {
+                loadStream(currentQuality);
+            });
+            
+            // Mouse movement tracking for cursor hiding
+            document.addEventListener('mousemove', resetInactivityTimer);
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                switch(e.key) {
+                    case ' ':
+                    case 'k':
+                        togglePlay();
+                        break;
+                    case 'm':
+                        toggleMute();
+                        break;
+                    case 'f':
+                        toggleFullscreen();
+                        break;
+                    case 'ArrowRight':
+                        video.currentTime += 10;
+                        break;
+                    case 'ArrowLeft':
+                        video.currentTime -= 10;
+                        break;
+                    case '1':
+                        currentQuality = '360p';
+                        loadStream(currentQuality);
+                        break;
+                    case '2':
+                        currentQuality = '480p';
+                        loadStream(currentQuality);
+                        break;
+                    case '3':
+                        currentQuality = '720p';
+                        loadStream(currentQuality);
+                        break;
+                    case '4':
+                        currentQuality = '1080p';
+                        loadStream(currentQuality);
+                        break;
+                }
+            });
+            
+            // Refresh stream periodically to avoid stalling on long viewing
+            setInterval(() => {
+                if (hls && !video.paused && video.readyState < 3) {
+                    console.log('Refreshing stream...');
+                    hls.startLoad();
+                }
+            }, 60000);  // Every minute
+            
+            // Initialize with default quality
+            loadStream(currentQuality);
         });
     </script>
 </body>
