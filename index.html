@@ -4,21 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stream Player</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Roboto', sans-serif;
+            font-family: 'Inter', sans-serif;
         }
         
         body, html {
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #0f0f0f;
-            color: white;
+            background-color: #0a0a0a;
+            color: #f5f5f5;
         }
         
         .player-wrapper {
@@ -36,6 +36,7 @@
             width: 100%;
             height: 100%;
             background-color: #000;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.6);
         }
         
         video {
@@ -49,8 +50,8 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(transparent, rgba(0,0,0,0.8));
-            padding: 10px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+            padding: 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -73,33 +74,40 @@
             border: none;
             color: white;
             font-size: 16px;
-            margin: 0 5px;
+            margin: 0 6px;
             cursor: pointer;
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             display: flex;
             justify-content: center;
             align-items: center;
             border-radius: 50%;
-            transition: background-color 0.2s ease;
+            transition: all 0.2s ease;
         }
         
         .control-button:hover {
-            background-color: rgba(255,255,255,0.2);
+            background-color: rgba(255,255,255,0.15);
+            transform: scale(1.05);
+        }
+        
+        .control-button:active {
+            transform: scale(0.95);
         }
         
         .quality-menu {
             position: absolute;
-            bottom: 50px;
-            right: 10px;
-            background: rgba(28, 28, 28, 0.9);
-            border-radius: 4px;
+            bottom: 60px;
+            right: 16px;
+            background: rgba(18, 18, 18, 0.95);
+            border-radius: 8px;
             padding: 8px 0;
             display: none;
             flex-direction: column;
-            min-width: 100px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            min-width: 120px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
             z-index: 20;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
         }
         
         .quality-menu.visible {
@@ -107,11 +115,12 @@
         }
         
         .quality-option {
-            padding: 8px 16px;
+            padding: 10px 16px;
             cursor: pointer;
             transition: background-color 0.2s ease;
             display: flex;
             align-items: center;
+            font-size: 14px;
         }
         
         .quality-option:hover {
@@ -119,7 +128,7 @@
         }
         
         .quality-option.active {
-            color: #2196F3;
+            color: #3a86ff;
             font-weight: 500;
         }
         
@@ -130,32 +139,39 @@
         
         .progress-container {
             flex-grow: 1;
-            height: 4px;
+            height: 5px;
             background-color: rgba(255,255,255,0.2);
-            margin: 0 10px;
+            margin: 0 14px;
             position: relative;
             cursor: pointer;
-            border-radius: 2px;
+            border-radius: 3px;
+            overflow: hidden;
         }
         
         .progress-bar {
             height: 100%;
-            background-color: #2196F3;
+            background: linear-gradient(90deg, #3a86ff, #4361ee);
             width: 0;
             position: relative;
-            border-radius: 2px;
+            border-radius: 3px;
+            transition: width 0.1s linear;
         }
         
         .progress-handle {
             position: absolute;
-            right: -6px;
+            right: -8px;
             top: 50%;
-            width: 12px;
-            height: 12px;
-            background-color: #2196F3;
+            width: 16px;
+            height: 16px;
+            background-color: #fff;
             border-radius: 50%;
             transform: translateY(-50%);
             display: none;
+            box-shadow: 0 0 8px rgba(0,0,0,0.5);
+        }
+        
+        .progress-container:hover {
+            height: 8px;
         }
         
         .progress-container:hover .progress-handle {
@@ -164,10 +180,11 @@
         
         .timestamp {
             font-size: 14px;
-            color: rgba(255,255,255,0.8);
-            margin: 0 5px;
+            color: rgba(255,255,255,0.9);
+            margin: 0 8px;
             min-width: 100px;
             text-align: center;
+            font-weight: 500;
         }
         
         .loading-overlay {
@@ -179,17 +196,19 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background-color: rgba(0,0,0,0.6);
+            background-color: rgba(0,0,0,0.7);
             z-index: 30;
+            backdrop-filter: blur(4px);
         }
         
         .spinner {
-            width: 48px;
-            height: 48px;
-            border: 4px solid rgba(255,255,255,0.3);
+            width: 52px;
+            height: 52px;
+            border: 4px solid rgba(255,255,255,0.2);
             border-radius: 50%;
-            border-top-color: #2196F3;
+            border-top-color: #3a86ff;
             animation: spin 1s linear infinite;
+            box-shadow: 0 0 20px rgba(58, 134, 255, 0.5);
         }
         
         .error-overlay {
@@ -202,36 +221,46 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background-color: rgba(0,0,0,0.8);
+            background-color: rgba(0,0,0,0.85);
             z-index: 40;
-            padding: 20px;
+            padding: 24px;
             text-align: center;
+            backdrop-filter: blur(10px);
         }
         
         .error-icon {
-            font-size: 48px;
-            color: #f44336;
-            margin-bottom: 16px;
+            font-size: 56px;
+            color: #ff4d6d;
+            margin-bottom: 20px;
         }
         
         .error-message {
-            font-size: 16px;
-            margin-bottom: 16px;
+            font-size: 18px;
+            margin-bottom: 24px;
+            max-width: 500px;
+            line-height: 1.5;
         }
         
         .retry-button {
-            background-color: #2196F3;
+            background: linear-gradient(90deg, #3a86ff, #4361ee);
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
+            padding: 12px 24px;
+            border-radius: 6px;
             cursor: pointer;
-            font-weight: 500;
-            transition: background-color 0.2s ease;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(58, 134, 255, 0.3);
         }
         
         .retry-button:hover {
-            background-color: #1976D2;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(58, 134, 255, 0.4);
+        }
+        
+        .retry-button:active {
+            transform: translateY(1px);
         }
         
         @keyframes spin {
@@ -240,14 +269,17 @@
         
         .buffering-indicator {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            background-color: rgba(0,0,0,0.6);
+            top: 16px;
+            right: 16px;
+            background-color: rgba(0,0,0,0.7);
             color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
             display: none;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
         
         /* Icons */
@@ -255,6 +287,60 @@
             width: 24px;
             height: 24px;
             fill: currentColor;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+        }
+        
+        /* Title bar */
+        .title-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(rgba(0,0,0,0.8), transparent);
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 10;
+        }
+        
+        .video-container:hover .title-bar {
+            opacity: 1;
+        }
+        
+        .stream-title {
+            font-weight: 600;
+            font-size: 16px;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+        
+        /* Custom tooltip */
+        .tooltip {
+            position: relative;
+        }
+        
+        .tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(18, 18, 18, 0.95);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .tooltip:hover::after {
+            opacity: 1;
         }
     </style>
 </head>
@@ -263,9 +349,13 @@
         <div class="video-container">
             <video id="video" playsinline></video>
             
+            <div class="title-bar">
+                <div class="stream-title">Live Stream</div>
+            </div>
+            
             <div class="controls-overlay">
                 <div class="control-group">
-                    <button class="control-button" id="play-pause">
+                    <button class="control-button tooltip" id="play-pause" data-tooltip="Play/Pause (Space)">
                         <svg class="icon" id="play-icon" viewBox="0 0 24 24">
                             <path d="M8 5v14l11-7z"/>
                         </svg>
@@ -284,7 +374,7 @@
                 </div>
                 
                 <div class="control-group">
-                    <button class="control-button" id="mute-toggle">
+                    <button class="control-button tooltip" id="mute-toggle" data-tooltip="Mute (M)">
                         <svg class="icon" id="volume-icon" viewBox="0 0 24 24">
                             <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
                         </svg>
@@ -293,13 +383,13 @@
                         </svg>
                     </button>
                     
-                    <button class="control-button" id="quality-toggle">
+                    <button class="control-button tooltip" id="quality-toggle" data-tooltip="Quality">
                         <svg class="icon" viewBox="0 0 24 24">
                             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7.5 13h2v2H11V9H9.5v2.5h-2V9H6v6h1.5zm6.5 2h.75v1.5h1.5V15H17c.55 0 1-.45 1-1v-4c0-.55-.45-1-1-1h-3c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1zm.5-4.5h2v3h-2v-3z"/>
                         </svg>
                     </button>
                     
-                    <button class="control-button" id="fullscreen-toggle">
+                    <button class="control-button tooltip" id="fullscreen-toggle" data-tooltip="Fullscreen (F)">
                         <svg class="icon" id="fullscreen-icon" viewBox="0 0 24 24">
                             <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
                         </svg>
@@ -357,22 +447,34 @@
             const retryButton = document.getElementById('retry-button');
             const bufferingIndicator = document.getElementById('buffering-indicator');
             const videoContainer = document.querySelector('.video-container');
+            const streamTitle = document.querySelector('.stream-title');
             
             // State
             let currentQuality = '720p'; // Default quality
             let hls = null;
             let isFullscreen = false;
             let inactivityTimer;
+            let controlsVisibilityTimer;
             const proxyBaseUrl = 'https://cstream-fly.onrender.com';
+            
+            // Update stream title with current quality
+            function updateStreamTitle() {
+                streamTitle.textContent = `Live Stream (${currentQuality})`;
+            }
             
             // Initialize quality menu
             updateQualityMenu();
+            updateStreamTitle();
             
             // Function to load the stream
             function loadStream(quality) {
                 // Show loading overlay
                 loadingOverlay.style.display = 'flex';
                 errorOverlay.style.display = 'none';
+                bufferingIndicator.style.display = 'none';
+                
+                // Update stream title
+                updateStreamTitle();
                 
                 // Destroy previous Hls instance if it exists
                 if (hls) {
@@ -397,7 +499,9 @@
                     
                     hls.on(Hls.Events.MANIFEST_PARSED, function() {
                         console.log('Manifest parsed, trying to play');
-                        loadingOverlay.style.display = 'none';
+                        setTimeout(() => {
+                            loadingOverlay.style.display = 'none';
+                        }, 500); // Add a small delay to make sure video is ready
                         
                         // Try to play
                         const playPromise = video.play();
@@ -436,7 +540,9 @@
                     
                     // Handle buffering
                     hls.on(Hls.Events.BUFFER_APPENDING, function() {
-                        bufferingIndicator.style.display = 'block';
+                        if (!video.paused) {
+                            bufferingIndicator.style.display = 'block';
+                        }
                     });
                     
                     hls.on(Hls.Events.FRAG_BUFFERED, function() {
@@ -565,6 +671,23 @@
                 }, 3000);
             }
             
+            function showControlsTemporarily() {
+                const controlsOverlay = document.querySelector('.controls-overlay');
+                const titleBar = document.querySelector('.title-bar');
+                
+                controlsOverlay.style.opacity = '1';
+                titleBar.style.opacity = '1';
+                
+                clearTimeout(controlsVisibilityTimer);
+                
+                if (!video.paused) {
+                    controlsVisibilityTimer = setTimeout(() => {
+                        controlsOverlay.style.opacity = '0';
+                        titleBar.style.opacity = '0';
+                    }, 3000);
+                }
+            }
+            
             // Event listeners
             playPauseBtn.addEventListener('click', togglePlay);
             
@@ -605,6 +728,9 @@
             video.addEventListener('play', updatePlayPauseButton);
             video.addEventListener('pause', updatePlayPauseButton);
             
+            // Double click to toggle fullscreen
+            videoContainer.addEventListener('dblclick', toggleFullscreen);
+            
             // Handle fullscreen change
             document.addEventListener('fullscreenchange', function() {
                 isFullscreen = !!document.fullscreenElement;
@@ -635,6 +761,7 @@
             
             video.addEventListener('playing', function() {
                 bufferingIndicator.style.display = 'none';
+                loadingOverlay.style.display = 'none';
             });
             
             // Retry button
@@ -642,8 +769,11 @@
                 loadStream(currentQuality);
             });
             
-            // Mouse movement tracking for cursor hiding
-            document.addEventListener('mousemove', resetInactivityTimer);
+            // Mouse movement tracking for cursor hiding and controls visibility
+            document.addEventListener('mousemove', function() {
+                resetInactivityTimer();
+                showControlsTemporarily();
+            });
             
             // Keyboard shortcuts
             document.addEventListener('keydown', function(e) {
@@ -651,36 +781,50 @@
                     case ' ':
                     case 'k':
                         togglePlay();
+                        showControlsTemporarily();
                         break;
                     case 'm':
                         toggleMute();
+                        showControlsTemporarily();
                         break;
                     case 'f':
                         toggleFullscreen();
+                        showControlsTemporarily();
                         break;
                     case 'ArrowRight':
                         video.currentTime += 10;
+                        showControlsTemporarily();
                         break;
                     case 'ArrowLeft':
                         video.currentTime -= 10;
+                        showControlsTemporarily();
                         break;
                     case '1':
                         currentQuality = '360p';
                         loadStream(currentQuality);
+                        showControlsTemporarily();
                         break;
                     case '2':
                         currentQuality = '480p';
                         loadStream(currentQuality);
+                        showControlsTemporarily();
                         break;
                     case '3':
                         currentQuality = '720p';
                         loadStream(currentQuality);
+                        showControlsTemporarily();
                         break;
                     case '4':
                         currentQuality = '1080p';
                         loadStream(currentQuality);
+                        showControlsTemporarily();
                         break;
                 }
+            });
+            
+            // Show controls when touching screen (for mobile)
+            videoContainer.addEventListener('touchstart', function() {
+                showControlsTemporarily();
             });
             
             // Refresh stream periodically to avoid stalling on long viewing
@@ -691,8 +835,22 @@
                 }
             }, 60000);  // Every minute
             
+            // Check connection and stream health
+            setInterval(() => {
+                if (!navigator.onLine) {
+                    showError('You are offline. Please check your internet connection.');
+                } else if (hls && !video.paused && video.readyState === 0) {
+                    // Video element is in "HAVE_NOTHING" state for too long
+                    console.log('Stream health check failed, attempting recovery...');
+                    hls.startLoad();
+                }
+            }, 10000); // Every 10 seconds
+            
             // Initialize with default quality
             loadStream(currentQuality);
+            
+            // Set volume to 70% by default
+            video.volume = 0.7;
         });
     </script>
 </body>
