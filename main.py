@@ -45,7 +45,8 @@ KNOWN_DOMAINS = [
     "ww4my.temycssme.wiki",
     "hlsvityv.cloudycx.net",
     "ww3v.cloudycx.com",
-    "m3u8.cloudycx.net"
+    "m3u8.cloudycx.net",
+    "myww1.ruscfd.lat"
 ]
 
 async def fetch_with_retry(url: str, is_binary: bool = False, attempts: int = MAX_RETRIES):
@@ -112,13 +113,13 @@ async def proxy_playlist(quality: str, background_tasks: BackgroundTasks):
     
     # Determine the URL based on quality
     if quality == "1080p":
-        url = "https://hlsvityv.cloudycx.net/live/mv1-1080p.mpd"
+        url = "https://xhls.embedxt.site/hls/live2.mpd"
     elif quality == "720p":
-        url = "https://hlsvityv.cloudycx.net/live/mv1-720p.mpd"
+        url = "https://xhls.embedxt.site/hls/live2.mpd"
     elif quality == "480p":
-        url = "https://hlsvityv.cloudycx.net/live/mv1-480p.mpd"
+        url = "https://xhls.embedxt.site/hls/live2.mpd"
     else:
-        url = "https://hlsvityv.cloudycx.net/live/mv1-360p.mpd"
+        url = "https://xhls.embedxt.site/hls/live2.mpd"
     
     # Check if we need to refresh the cache
     current_time = time.time()
@@ -207,7 +208,7 @@ async def proxy_segment(segment_id: str):
         )
     
     # Try to fetch from the most recent known domain
-    url = f"https://ww4my.temycssme.wiki/{segment_id}"
+    url = f"https://myww1.ruscfd.lat/{segment_id}"
     
     # Fetch the segment
     response = await fetch_with_retry(url, is_binary=True)
