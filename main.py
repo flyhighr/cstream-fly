@@ -42,11 +42,7 @@ default_client = httpx.AsyncClient(timeout=10.0, follow_redirects=True)
 
 # List of known domains to try
 KNOWN_DOMAINS = [
-    "ww4my.temycssme.wiki",
-    "hlsvityv.cloudycx.net",
-    "ww3v.cloudycx.com",
-    "m3u8.cloudycx.net",
-    "myww1.ruscfd.lat"
+    "https://myww1.ruscfd.lat/",
 ]
 
 async def fetch_with_retry(url: str, is_binary: bool = False, attempts: int = MAX_RETRIES):
