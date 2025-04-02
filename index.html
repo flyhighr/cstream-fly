@@ -12,7 +12,7 @@
             box-sizing: border-box;
             font-family: 'Inter', sans-serif;
         }
-        
+
         body, html {
             width: 100%;
             height: 100%;
@@ -20,7 +20,7 @@
             background-color: #0a0a0a;
             color: #f5f5f5;
         }
-        
+
         .player-wrapper {
             position: relative;
             width: 100%;
@@ -30,7 +30,7 @@
             justify-content: center;
             align-items: center;
         }
-        
+
         .video-container {
             position: relative;
             width: 100%;
@@ -38,13 +38,13 @@
             background-color: #000;
             box-shadow: 0 8px 30px rgba(0,0,0,0.6);
         }
-        
+
         video {
             width: 100%;
             height: 100%;
             object-fit: contain;
         }
-        
+
         .controls-overlay {
             position: absolute;
             bottom: 0;
@@ -59,16 +59,17 @@
             transition: opacity 0.3s ease;
             z-index: 10;
         }
-        
+
         .video-container:hover .controls-overlay {
             opacity: 1;
         }
-        
+
         .control-group {
             display: flex;
             align-items: center;
+            flex-wrap: nowrap;
         }
-        
+
         .control-button {
             background: transparent;
             border: none;
@@ -83,17 +84,18 @@
             align-items: center;
             border-radius: 50%;
             transition: all 0.2s ease;
+            flex-shrink: 0;
         }
-        
+
         .control-button:hover {
             background-color: rgba(255,255,255,0.15);
             transform: scale(1.05);
         }
-        
+
         .control-button:active {
             transform: scale(0.95);
         }
-        
+
         .quality-menu {
             position: absolute;
             bottom: 60px;
@@ -109,11 +111,11 @@
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255,255,255,0.1);
         }
-        
+
         .quality-menu.visible {
             display: flex;
         }
-        
+
         .quality-option {
             padding: 10px 16px;
             cursor: pointer;
@@ -122,21 +124,21 @@
             align-items: center;
             font-size: 14px;
         }
-        
+
         .quality-option:hover {
             background-color: rgba(255,255,255,0.1);
         }
-        
+
         .quality-option.active {
             color: #3a86ff;
             font-weight: 500;
         }
-        
+
         .quality-option.active::before {
             content: "✓";
             margin-right: 8px;
         }
-        
+
         .progress-container {
             flex-grow: 1;
             height: 5px;
@@ -146,8 +148,9 @@
             cursor: pointer;
             border-radius: 3px;
             overflow: hidden;
+            min-width: 50px;
         }
-        
+
         .progress-bar {
             height: 100%;
             background: linear-gradient(90deg, #3a86ff, #4361ee);
@@ -156,7 +159,7 @@
             border-radius: 3px;
             transition: width 0.1s linear;
         }
-        
+
         .progress-handle {
             position: absolute;
             right: -8px;
@@ -169,24 +172,26 @@
             display: none;
             box-shadow: 0 0 8px rgba(0,0,0,0.5);
         }
-        
+
         .progress-container:hover {
             height: 8px;
         }
-        
+
         .progress-container:hover .progress-handle {
             display: block;
         }
-        
+
         .timestamp {
             font-size: 14px;
             color: rgba(255,255,255,0.9);
             margin: 0 8px;
-            min-width: 100px;
+            min-width: 80px;
             text-align: center;
             font-weight: 500;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
-        
+
         .loading-overlay {
             position: absolute;
             top: 0;
@@ -200,7 +205,7 @@
             z-index: 30;
             backdrop-filter: blur(4px);
         }
-        
+
         .spinner {
             width: 52px;
             height: 52px;
@@ -210,7 +215,7 @@
             animation: spin 1s linear infinite;
             box-shadow: 0 0 20px rgba(58, 134, 255, 0.5);
         }
-        
+
         .error-overlay {
             position: absolute;
             top: 0;
@@ -227,20 +232,20 @@
             text-align: center;
             backdrop-filter: blur(10px);
         }
-        
+
         .error-icon {
             font-size: 56px;
             color: #ff4d6d;
             margin-bottom: 20px;
         }
-        
+
         .error-message {
             font-size: 18px;
             margin-bottom: 24px;
             max-width: 500px;
             line-height: 1.5;
         }
-        
+
         .retry-button {
             background: linear-gradient(90deg, #3a86ff, #4361ee);
             color: white;
@@ -253,20 +258,20 @@
             transition: all 0.2s ease;
             box-shadow: 0 4px 12px rgba(58, 134, 255, 0.3);
         }
-        
+
         .retry-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 16px rgba(58, 134, 255, 0.4);
         }
-        
+
         .retry-button:active {
             transform: translateY(1px);
         }
-        
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        
+
         .buffering-indicator {
             position: absolute;
             top: 16px;
@@ -281,16 +286,14 @@
             border: 1px solid rgba(255,255,255,0.1);
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
-        
-        /* Icons */
+
         .icon {
             width: 24px;
             height: 24px;
             fill: currentColor;
             filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
         }
-        
-        /* Title bar */
+
         .title-bar {
             position: absolute;
             top: 0;
@@ -305,22 +308,25 @@
             transition: opacity 0.3s ease;
             z-index: 10;
         }
-        
+
         .video-container:hover .title-bar {
             opacity: 1;
         }
-        
+
         .stream-title {
             font-weight: 600;
             font-size: 16px;
             text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 80%;
         }
-        
-        /* Custom tooltip */
+
         .tooltip {
             position: relative;
         }
-        
+
         .tooltip::after {
             content: attr(data-tooltip);
             position: absolute;
@@ -337,10 +343,56 @@
             pointer-events: none;
             transition: opacity 0.2s ease;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            z-index: 100;
         }
-        
+
         .tooltip:hover::after {
             opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .control-button {
+                margin: 0 4px;
+                width: 32px;
+                height: 32px;
+            }
+
+            .timestamp {
+                min-width: 60px;
+                font-size: 12px;
+                margin: 0 4px;
+            }
+
+            .progress-container {
+                margin: 0 8px;
+            }
+
+            .controls-overlay {
+                padding: 12px 8px;
+            }
+
+            .title-bar {
+                padding: 12px 8px;
+            }
+
+            .stream-title {
+                font-size: 14px;
+            }
+
+            .tooltip::after {
+                display: none; 
+            }
+        }
+
+        @media (max-width: 480px) {
+            .control-group:first-child {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .timestamp {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -348,11 +400,11 @@
     <div class="player-wrapper">
         <div class="video-container">
             <video id="video" playsinline></video>
-            
+
             <div class="title-bar">
                 <div class="stream-title">Live Stream</div>
             </div>
-            
+
             <div class="controls-overlay">
                 <div class="control-group">
                     <button class="control-button tooltip" id="play-pause" data-tooltip="Play/Pause (Space)">
@@ -363,16 +415,16 @@
                             <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
                         </svg>
                     </button>
-                    
+
                     <div class="timestamp" id="timestamp">00:00 / 00:00</div>
-                    
+
                     <div class="progress-container" id="progress-container">
                         <div class="progress-bar" id="progress-bar">
                             <div class="progress-handle"></div>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="control-group">
                     <button class="control-button tooltip" id="mute-toggle" data-tooltip="Mute (M)">
                         <svg class="icon" id="volume-icon" viewBox="0 0 24 24">
@@ -382,13 +434,13 @@
                             <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
                         </svg>
                     </button>
-                    
+
                     <button class="control-button tooltip" id="quality-toggle" data-tooltip="Quality">
                         <svg class="icon" viewBox="0 0 24 24">
                             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7.5 13h2v2H11V9H9.5v2.5h-2V9H6v6h1.5zm6.5 2h.75v1.5h1.5V15H17c.55 0 1-.45 1-1v-4c0-.55-.45-1-1-1h-3c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1zm.5-4.5h2v3h-2v-3z"/>
                         </svg>
                     </button>
-                    
+
                     <button class="control-button tooltip" id="fullscreen-toggle" data-tooltip="Fullscreen (F)">
                         <svg class="icon" id="fullscreen-icon" viewBox="0 0 24 24">
                             <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
@@ -399,32 +451,32 @@
                     </button>
                 </div>
             </div>
-            
+
             <div class="quality-menu" id="quality-menu">
                 <div class="quality-option" data-quality="1080p">1080p</div>
                 <div class="quality-option" data-quality="720p">720p</div>
                 <div class="quality-option" data-quality="480p">480p</div>
                 <div class="quality-option" data-quality="360p">360p</div>
             </div>
-            
+
             <div class="loading-overlay" id="loading-overlay">
                 <div class="spinner"></div>
             </div>
-            
+
             <div class="error-overlay" id="error-overlay">
                 <div class="error-icon">⚠️</div>
                 <div class="error-message" id="error-message">An error occurred while loading the stream.</div>
                 <button class="retry-button" id="retry-button">Try Again</button>
             </div>
-            
+
             <div class="buffering-indicator" id="buffering-indicator">Buffering...</div>
         </div>
     </div>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Elements
+
             const video = document.getElementById('video');
             const playPauseBtn = document.getElementById('play-pause');
             const playIcon = document.getElementById('play-icon');
@@ -448,39 +500,34 @@
             const bufferingIndicator = document.getElementById('buffering-indicator');
             const videoContainer = document.querySelector('.video-container');
             const streamTitle = document.querySelector('.stream-title');
-            
-            // State
-            let currentQuality = '720p'; // Default quality
+
+            let currentQuality = '720p'; 
             let hls = null;
             let isFullscreen = false;
             let inactivityTimer;
             let controlsVisibilityTimer;
-            const proxyBaseUrl = 'https://cstream-fly.onrender.com';
-            
-            // Update stream title with current quality
+            const proxyBaseUrl = window.location.origin;
+
             function updateStreamTitle() {
                 streamTitle.textContent = `Live Stream (${currentQuality})`;
             }
-            
-            // Initialize quality menu
+
             updateQualityMenu();
             updateStreamTitle();
-            
-            // Function to load the stream
+
             function loadStream(quality) {
-                // Show loading overlay
+
                 loadingOverlay.style.display = 'flex';
                 errorOverlay.style.display = 'none';
                 bufferingIndicator.style.display = 'none';
-                
-                // Update stream title
+
+                currentQuality = quality;
                 updateStreamTitle();
-                
-                // Destroy previous Hls instance if it exists
+
                 if (hls) {
                     hls.destroy();
                 }
-                
+
                 if (Hls.isSupported()) {
                     hls = new Hls({
                         debug: false,
@@ -490,34 +537,32 @@
                         maxBufferLength: 30,
                         maxMaxBufferLength: 60
                     });
-                    
-                    const playlistUrl = `${proxyBaseUrl}/proxy/playlist/${quality}`;
+
+                    const playlistUrl = `${proxyBaseUrl}/proxy/m3u8/${quality}`;
                     console.log("Loading playlist:", playlistUrl);
-                    
+
                     hls.loadSource(playlistUrl);
                     hls.attachMedia(video);
-                    
+
                     hls.on(Hls.Events.MANIFEST_PARSED, function() {
                         console.log('Manifest parsed, trying to play');
                         setTimeout(() => {
                             loadingOverlay.style.display = 'none';
-                        }, 500); // Add a small delay to make sure video is ready
-                        
-                        // Try to play
+                        }, 500); 
+
                         const playPromise = video.play();
                         if (playPromise !== undefined) {
                             playPromise.then(() => {
-                                // Playback started successfully
+
                                 updatePlayPauseButton();
                             }).catch(err => {
                                 console.error('Playback failed:', err);
-                                // Auto-play was prevented, show play button
+
                                 updatePlayPauseButton();
                             });
                         }
                     });
-                    
-                    // Handle errors
+
                     hls.on(Hls.Events.ERROR, function(event, data) {
                         console.error('HLS error:', data);
                         if (data.fatal) {
@@ -537,22 +582,21 @@
                             }
                         }
                     });
-                    
-                    // Handle buffering
+
                     hls.on(Hls.Events.BUFFER_APPENDING, function() {
                         if (!video.paused) {
                             bufferingIndicator.style.display = 'block';
                         }
                     });
-                    
+
                     hls.on(Hls.Events.FRAG_BUFFERED, function() {
                         bufferingIndicator.style.display = 'none';
                     });
-                    
+
                 } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    // For Safari
+
                     loadingOverlay.style.display = 'none';
-                    video.src = `${proxyBaseUrl}/proxy/playlist/${quality}`;
+                    video.src = `${proxyBaseUrl}/proxy/m3u8/${quality}`;
                     video.addEventListener('loadedmetadata', function() {
                         video.play().catch(err => {
                             console.error('Playback failed:', err);
@@ -563,11 +607,10 @@
                     showError('Your browser does not support HLS playback');
                     console.error('HLS is not supported in this browser');
                 }
-                
-                // Update active quality option
+
                 updateQualityMenu();
             }
-            
+
             function updateQualityMenu() {
                 qualityOptions.forEach(option => {
                     if (option.dataset.quality === currentQuality) {
@@ -577,25 +620,24 @@
                     }
                 });
             }
-            
+
             function formatTime(seconds) {
                 const minutes = Math.floor(seconds / 60);
                 seconds = Math.floor(seconds % 60);
                 return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             }
-            
+
             function updateProgressBar() {
                 if (video.duration) {
                     const progress = (video.currentTime / video.duration) * 100;
                     progressBar.style.width = `${progress}%`;
-                    
-                    // Update timestamp
+
                     timestamp.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
                 } else {
                     timestamp.textContent = "Live";
                 }
             }
-            
+
             function updatePlayPauseButton() {
                 if (video.paused) {
                     playIcon.style.display = 'block';
@@ -605,7 +647,7 @@
                     pauseIcon.style.display = 'block';
                 }
             }
-            
+
             function togglePlay() {
                 if (video.paused) {
                     video.play().catch(err => {
@@ -617,7 +659,7 @@
                 }
                 updatePlayPauseButton();
             }
-            
+
             function toggleMute() {
                 video.muted = !video.muted;
                 if (video.muted) {
@@ -628,7 +670,7 @@
                     muteIcon.style.display = 'none';
                 }
             }
-            
+
             function toggleFullscreen() {
                 if (!isFullscreen) {
                     if (videoContainer.requestFullscreen) {
@@ -654,13 +696,13 @@
                     exitFullscreenIcon.style.display = 'none';
                 }
             }
-            
+
             function showError(message) {
                 loadingOverlay.style.display = 'none';
                 errorOverlay.style.display = 'flex';
                 errorMessage.textContent = message;
             }
-            
+
             function resetInactivityTimer() {
                 clearTimeout(inactivityTimer);
                 document.body.style.cursor = 'default';
@@ -670,16 +712,16 @@
                     }
                 }, 3000);
             }
-            
+
             function showControlsTemporarily() {
                 const controlsOverlay = document.querySelector('.controls-overlay');
                 const titleBar = document.querySelector('.title-bar');
-                
+
                 controlsOverlay.style.opacity = '1';
                 titleBar.style.opacity = '1';
-                
+
                 clearTimeout(controlsVisibilityTimer);
-                
+
                 if (!video.paused) {
                     controlsVisibilityTimer = setTimeout(() => {
                         controlsOverlay.style.opacity = '0';
@@ -687,51 +729,46 @@
                     }, 3000);
                 }
             }
-            
-            // Event listeners
+
             playPauseBtn.addEventListener('click', togglePlay);
-            
+
             muteToggle.addEventListener('click', toggleMute);
-            
+
             fullscreenToggle.addEventListener('click', toggleFullscreen);
-            
+
             qualityToggle.addEventListener('click', function(e) {
                 e.stopPropagation();
                 qualityMenu.classList.toggle('visible');
             });
-            
-            // Hide quality menu when clicking elsewhere
+
             document.addEventListener('click', function() {
                 qualityMenu.classList.remove('visible');
             });
-            
+
             qualityMenu.addEventListener('click', function(e) {
                 e.stopPropagation();
                 if (e.target.classList.contains('quality-option')) {
                     const newQuality = e.target.dataset.quality;
                     if (newQuality !== currentQuality) {
-                        currentQuality = newQuality;
-                        loadStream(currentQuality);
+                        loadStream(newQuality);
                     }
                     qualityMenu.classList.remove('visible');
                 }
             });
-            
+
             progressContainer.addEventListener('click', function(e) {
                 const rect = progressContainer.getBoundingClientRect();
                 const pos = (e.clientX - rect.left) / rect.width;
                 video.currentTime = pos * video.duration;
             });
-            
+
             video.addEventListener('timeupdate', updateProgressBar);
-            
+
             video.addEventListener('play', updatePlayPauseButton);
             video.addEventListener('pause', updatePlayPauseButton);
-            
-            // Double click to toggle fullscreen
+
             videoContainer.addEventListener('dblclick', toggleFullscreen);
-            
-            // Handle fullscreen change
+
             document.addEventListener('fullscreenchange', function() {
                 isFullscreen = !!document.fullscreenElement;
                 if (isFullscreen) {
@@ -742,8 +779,7 @@
                     exitFullscreenIcon.style.display = 'none';
                 }
             });
-            
-            // Auto-reload stream if it stalls
+
             video.addEventListener('stalled', function() {
                 console.log('Stream stalled, reloading...');
                 bufferingIndicator.style.display = 'block';
@@ -753,29 +789,25 @@
                     }
                 }, 2000);
             });
-            
-            // Handle waiting/buffering
+
             video.addEventListener('waiting', function() {
                 bufferingIndicator.style.display = 'block';
             });
-            
+
             video.addEventListener('playing', function() {
                 bufferingIndicator.style.display = 'none';
                 loadingOverlay.style.display = 'none';
             });
-            
-            // Retry button
+
             retryButton.addEventListener('click', function() {
                 loadStream(currentQuality);
             });
-            
-            // Mouse movement tracking for cursor hiding and controls visibility
+
             document.addEventListener('mousemove', function() {
                 resetInactivityTimer();
                 showControlsTemporarily();
             });
-            
-            // Keyboard shortcuts
+
             document.addEventListener('keydown', function(e) {
                 switch(e.key) {
                     case ' ':
@@ -800,56 +832,53 @@
                         showControlsTemporarily();
                         break;
                     case '1':
-                        currentQuality = '360p';
-                        loadStream(currentQuality);
+                        loadStream('360p');
                         showControlsTemporarily();
                         break;
                     case '2':
-                        currentQuality = '480p';
-                        loadStream(currentQuality);
+                        loadStream('480p');
                         showControlsTemporarily();
                         break;
                     case '3':
-                        currentQuality = '720p';
-                        loadStream(currentQuality);
+                        loadStream('720p');
                         showControlsTemporarily();
                         break;
                     case '4':
-                        currentQuality = '1080p';
-                        loadStream(currentQuality);
+                        loadStream('1080p');
                         showControlsTemporarily();
                         break;
                 }
             });
-            
-            // Show controls when touching screen (for mobile)
+
             videoContainer.addEventListener('touchstart', function() {
                 showControlsTemporarily();
             });
-            
-            // Refresh stream periodically to avoid stalling on long viewing
+
             setInterval(() => {
                 if (hls && !video.paused && video.readyState < 3) {
                     console.log('Refreshing stream...');
                     hls.startLoad();
                 }
-            }, 60000);  // Every minute
-            
-            // Check connection and stream health
+            }, 60000);  
+
             setInterval(() => {
                 if (!navigator.onLine) {
                     showError('You are offline. Please check your internet connection.');
                 } else if (hls && !video.paused && video.readyState === 0) {
-                    // Video element is in "HAVE_NOTHING" state for too long
+
                     console.log('Stream health check failed, attempting recovery...');
                     hls.startLoad();
                 }
-            }, 10000); // Every 10 seconds
-            
-            // Initialize with default quality
+            }, 10000); 
+
+            if (screen.orientation && screen.orientation.unlock) {
+                screen.orientation.unlock().catch(err => {
+                    console.error('Failed to unlock screen orientation:', err);
+                });
+            }
+
             loadStream(currentQuality);
-            
-            // Set volume to 70% by default
+
             video.volume = 0.7;
         });
     </script>
