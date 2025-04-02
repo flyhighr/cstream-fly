@@ -4,12 +4,10 @@ import asyncio
 import logging
 import time
 import os
-import re
 from datetime import datetime
 from fastapi.middleware.cors import CORSMiddleware
 import random
 from typing import Dict, List, Optional, Any
-from bs4 import BeautifulSoup
 
 # Configure logging
 logging.basicConfig(
@@ -38,100 +36,16 @@ MAX_RETRIES = 3
 # Cache storage
 segment_cache: Dict[str, Dict[str, Any]] = {}
 playlist_cache: Dict[str, Dict[str, Any]] = {}
-stream_url_cache = {"url": None, "timestamp": 0}
 
 # HTTP clients
 default_client = httpx.AsyncClient(timeout=10.0, follow_redirects=True)
 
-# Known direct stream URLs that might work
-DIRECT_STREAM_URLS = [
-    "https://redx.embedxt.site/index.m3u8",  # From the iframe source
-    "https://myww1.ruscfd.lat/hls/live2.m3u8" # Direct HLS stream
-]
+# Source URLs - primary source of streaming content
+PRIMARY_SOURCE_URL = "https://redx.embedxt.site/index.m3u8"
+BACKUP_SOURCE_URL = "https://myww1.ruscfd.lat/hls/live2.m3u8"
 
-# Base segment URL
+# Base segment URL - this is where the segments are stored
 SEGMENT_BASE_URL = "https://myww1.ruscfd.lat"
-
-async def extract_stream_url_from_iframe(html_content):
-    """Extract the actual stream URL from iframe HTML content"""
-    try:
-        # Try to parse the HTML and find stream URL
-        soup = BeautifulSoup(html_content, 'html.parser')
-        
-        # Look for video source elements
-        for source in soup.find_all('source'):
-            src = source.get('src')
-            if src and (src.endswith('.m3u8') or src.endswith('.mpd')):
-                logger.info(f"Found stream URL in source element: {src}")
-                return src
-        
-        # If no source element found, look in script tags
-        for script in soup.find_all('script'):
-            script_text = script.string
-            if script_text:
-                # Look for common HLS or DASH URL patterns
-                url_match = re.search(r'(https?://[^"\']+\.(m3u8|mpd))', script_text)
-                if url_match:
-                    logger.info(f"Found stream URL in script: {url_match.group(1)}")
-                    return url_match.group(1)
-        
-        logger.warning("Could not find stream URL in iframe content")
-        return None
-    except Exception as e:
-        logger.error(f"Error extracting stream URL from iframe: {str(e)}")
-        return None
-
-async def find_working_stream_url():
-    """Try multiple methods to find a working stream URL"""
-    # Check if we have a recent cached URL
-    current_time = time.time()
-    if stream_url_cache["url"] and current_time - stream_url_cache["timestamp"] < 300:  # 5 minutes
-        logger.info(f"Using cached stream URL: {stream_url_cache['url']}")
-        return stream_url_cache["url"]
-    
-    # First try the direct URLs we know about
-    for url in DIRECT_STREAM_URLS:
-        try:
-            logger.info(f"Trying direct stream URL: {url}")
-            response = await default_client.get(url)
-            if response.status_code == 200 and response.text.startswith('#EXTM3U'):
-                logger.info(f"Found working direct stream URL: {url}")
-                stream_url_cache["url"] = url
-                stream_url_cache["timestamp"] = current_time
-                return url
-        except Exception as e:
-            logger.warning(f"Error checking direct URL {url}: {str(e)}")
-    
-    # If direct URLs don't work, try fetching the iframe
-    try:
-        iframe_url = "https://iframv3.embedxt.site/iframe/frame.php"
-        logger.info(f"Fetching iframe URL: {iframe_url}")
-        response = await default_client.get(iframe_url, headers={
-            "Referer": "https://iframv3.embedxt.site/",
-            "Origin": "https://iframv3.embedxt.site",
-            "Host": "iframv3.embedxt.site"
-        })
-        
-        if response.status_code == 200:
-            # Try to extract the stream URL from the iframe content
-            stream_url = await extract_stream_url_from_iframe(response.text)
-            if stream_url:
-                # Verify the stream URL works
-                try:
-                    stream_response = await default_client.get(stream_url)
-                    if stream_response.status_code == 200 and stream_response.text.startswith('#EXTM3U'):
-                        logger.info(f"Found working stream URL from iframe: {stream_url}")
-                        stream_url_cache["url"] = stream_url
-                        stream_url_cache["timestamp"] = current_time
-                        return stream_url
-                except Exception as e:
-                    logger.warning(f"Error verifying stream URL from iframe: {str(e)}")
-    except Exception as e:
-        logger.error(f"Error fetching iframe: {str(e)}")
-    
-    # If all else fails, return the first direct URL as a fallback
-    logger.warning("Could not find working stream URL, using fallback")
-    return DIRECT_STREAM_URLS[0]
 
 async def fetch_with_retry(url: str, is_binary: bool = False, attempts: int = MAX_RETRIES, headers=None):
     """Fetch a URL with multiple retry attempts"""
@@ -144,10 +58,17 @@ async def fetch_with_retry(url: str, is_binary: bool = False, attempts: int = MA
     for attempt in range(attempts):
         try:
             logger.debug(f"[{request_id}] Attempt {attempt+1}/{attempts}")
+            
+            request_headers = {
+                "Referer": "https://iframv3.embedxt.site/",
+                "Origin": "https://iframv3.embedxt.site",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }
+            
             if headers:
-                response = await default_client.get(url, headers=headers)
-            else:
-                response = await default_client.get(url)
+                request_headers.update(headers)
+                
+            response = await default_client.get(url, headers=request_headers)
             
             if response.status_code == 200:
                 logger.info(f"[{request_id}] Successfully fetched {url}")
@@ -169,6 +90,32 @@ async def fetch_with_retry(url: str, is_binary: bool = False, attempts: int = MA
     logger.error(f"[{request_id}] All attempts to fetch {url} failed")
     return None
 
+async def get_working_playlist_url():
+    """Try to get a working playlist URL"""
+    # Try primary source first
+    try:
+        logger.info(f"Trying primary source: {PRIMARY_SOURCE_URL}")
+        response = await fetch_with_retry(PRIMARY_SOURCE_URL)
+        if response and response.status_code == 200 and response.text.startswith('#EXTM3U'):
+            logger.info(f"Primary source is working")
+            return PRIMARY_SOURCE_URL
+    except Exception as e:
+        logger.warning(f"Error with primary source: {str(e)}")
+    
+    # Try backup source
+    try:
+        logger.info(f"Trying backup source: {BACKUP_SOURCE_URL}")
+        response = await fetch_with_retry(BACKUP_SOURCE_URL)
+        if response and response.status_code == 200 and response.text.startswith('#EXTM3U'):
+            logger.info(f"Backup source is working")
+            return BACKUP_SOURCE_URL
+    except Exception as e:
+        logger.warning(f"Error with backup source: {str(e)}")
+    
+    # Return primary as default
+    logger.warning("No working source found, defaulting to primary")
+    return PRIMARY_SOURCE_URL
+
 @app.get("/hls/live2.mpd")
 @app.get("/hls/live2.m3u8")
 @app.get("/media/hls/files/index.m3u8")
@@ -187,24 +134,10 @@ async def proxy_main_playlist():
     if refresh_needed:
         logger.info(f"[{request_id}] Main playlist cache refresh needed")
         
-        # Find a working stream URL
-        stream_url = await find_working_stream_url()
+        # Get a working playlist URL
+        playlist_url = await get_working_playlist_url()
         
-        if not stream_url:
-            logger.error(f"[{request_id}] Failed to find working stream URL")
-            return Response(
-                content="Failed to find working stream URL",
-                status_code=503,
-                headers={"Access-Control-Allow-Origin": "*"}
-            )
-        
-        # Add proper headers for the streaming site
-        headers = {
-            "Referer": "https://iframv3.embedxt.site/",
-            "Origin": "https://iframv3.embedxt.site"
-        }
-        
-        response = await fetch_with_retry(stream_url, headers=headers)
+        response = await fetch_with_retry(playlist_url)
         
         if response:
             content = response.text
@@ -300,14 +233,8 @@ async def proxy_segment(segment_id: str):
     url = f"{SEGMENT_BASE_URL}/{segment_id}"
     logger.info(f"[{request_id}] Fetching segment from: {url}")
     
-    # Add proper headers for the streaming site
-    headers = {
-        "Referer": "https://iframv3.embedxt.site/",
-        "Origin": "https://iframv3.embedxt.site"
-    }
-    
     # Fetch the segment
-    response = await fetch_with_retry(url, is_binary=True, headers=headers)
+    response = await fetch_with_retry(url, is_binary=True)
     
     if response:
         logger.info(f"[{request_id}] Successfully fetched segment: {segment_id}")
