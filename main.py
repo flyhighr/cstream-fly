@@ -21,29 +21,6 @@ app = FastAPI(title="HLS Stream Proxy", description="Reliable proxy for HLS stre
 
 app.add_middleware(
     CORSMiddleware,
-from fastapi import FastAPI, Response, BackgroundTasks, Request
-import httpx
-import asyncio
-import logging
-import time
-import os
-import re
-from datetime import datetime
-from fastapi.middleware.cors import CORSMiddleware
-import random
-from typing import Dict, List, Optional, Any
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
-)
-logger = logging.getLogger("hls-proxy")
-logger.setLevel(logging.DEBUG)
-
-app = FastAPI(title="HLS Stream Proxy", description="Reliable proxy for HLS streams")
-
-app.add_middleware(
-    CORSMiddleware,
     allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],  
