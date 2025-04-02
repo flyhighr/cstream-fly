@@ -4,11 +4,12 @@ import asyncio
 import logging
 import time
 import os
+import re
 from datetime import datetime
 from fastapi.middleware.cors import CORSMiddleware
 import random
 from typing import Dict, List, Optional, Any
-import re
+from bs4 import BeautifulSoup
 
 # Configure logging
 logging.basicConfig(
@@ -37,14 +38,102 @@ MAX_RETRIES = 3
 # Cache storage
 segment_cache: Dict[str, Dict[str, Any]] = {}
 playlist_cache: Dict[str, Dict[str, Any]] = {}
+stream_url_cache = {"url": None, "timestamp": 0}
 
 # HTTP clients
 default_client = httpx.AsyncClient(timeout=10.0, follow_redirects=True)
 
-# Source URLs
-MAIN_PLAYLIST_URL = "https://xhls.embedxt.site/hls/live2.mpd"
+# Known direct stream URLs that might work
+DIRECT_STREAM_URLS = [
+    "https://redx.embedxt.site/index.m3u8",  # From the iframe source
+    "https://myww1.ruscfd.lat/hls/live2.m3u8" # Direct HLS stream
+]
 
-async def fetch_with_retry(url: str, is_binary: bool = False, attempts: int = MAX_RETRIES):
+# Base segment URL
+SEGMENT_BASE_URL = "https://myww1.ruscfd.lat"
+
+async def extract_stream_url_from_iframe(html_content):
+    """Extract the actual stream URL from iframe HTML content"""
+    try:
+        # Try to parse the HTML and find stream URL
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        # Look for video source elements
+        for source in soup.find_all('source'):
+            src = source.get('src')
+            if src and (src.endswith('.m3u8') or src.endswith('.mpd')):
+                logger.info(f"Found stream URL in source element: {src}")
+                return src
+        
+        # If no source element found, look in script tags
+        for script in soup.find_all('script'):
+            script_text = script.string
+            if script_text:
+                # Look for common HLS or DASH URL patterns
+                url_match = re.search(r'(https?://[^"\']+\.(m3u8|mpd))', script_text)
+                if url_match:
+                    logger.info(f"Found stream URL in script: {url_match.group(1)}")
+                    return url_match.group(1)
+        
+        logger.warning("Could not find stream URL in iframe content")
+        return None
+    except Exception as e:
+        logger.error(f"Error extracting stream URL from iframe: {str(e)}")
+        return None
+
+async def find_working_stream_url():
+    """Try multiple methods to find a working stream URL"""
+    # Check if we have a recent cached URL
+    current_time = time.time()
+    if stream_url_cache["url"] and current_time - stream_url_cache["timestamp"] < 300:  # 5 minutes
+        logger.info(f"Using cached stream URL: {stream_url_cache['url']}")
+        return stream_url_cache["url"]
+    
+    # First try the direct URLs we know about
+    for url in DIRECT_STREAM_URLS:
+        try:
+            logger.info(f"Trying direct stream URL: {url}")
+            response = await default_client.get(url)
+            if response.status_code == 200 and response.text.startswith('#EXTM3U'):
+                logger.info(f"Found working direct stream URL: {url}")
+                stream_url_cache["url"] = url
+                stream_url_cache["timestamp"] = current_time
+                return url
+        except Exception as e:
+            logger.warning(f"Error checking direct URL {url}: {str(e)}")
+    
+    # If direct URLs don't work, try fetching the iframe
+    try:
+        iframe_url = "https://iframv3.embedxt.site/iframe/frame.php"
+        logger.info(f"Fetching iframe URL: {iframe_url}")
+        response = await default_client.get(iframe_url, headers={
+            "Referer": "https://iframv3.embedxt.site/",
+            "Origin": "https://iframv3.embedxt.site",
+            "Host": "iframv3.embedxt.site"
+        })
+        
+        if response.status_code == 200:
+            # Try to extract the stream URL from the iframe content
+            stream_url = await extract_stream_url_from_iframe(response.text)
+            if stream_url:
+                # Verify the stream URL works
+                try:
+                    stream_response = await default_client.get(stream_url)
+                    if stream_response.status_code == 200 and stream_response.text.startswith('#EXTM3U'):
+                        logger.info(f"Found working stream URL from iframe: {stream_url}")
+                        stream_url_cache["url"] = stream_url
+                        stream_url_cache["timestamp"] = current_time
+                        return stream_url
+                except Exception as e:
+                    logger.warning(f"Error verifying stream URL from iframe: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error fetching iframe: {str(e)}")
+    
+    # If all else fails, return the first direct URL as a fallback
+    logger.warning("Could not find working stream URL, using fallback")
+    return DIRECT_STREAM_URLS[0]
+
+async def fetch_with_retry(url: str, is_binary: bool = False, attempts: int = MAX_RETRIES, headers=None):
     """Fetch a URL with multiple retry attempts"""
     request_id = str(random.randint(10000, 99999))
     errors = []
@@ -55,7 +144,10 @@ async def fetch_with_retry(url: str, is_binary: bool = False, attempts: int = MA
     for attempt in range(attempts):
         try:
             logger.debug(f"[{request_id}] Attempt {attempt+1}/{attempts}")
-            response = await default_client.get(url)
+            if headers:
+                response = await default_client.get(url, headers=headers)
+            else:
+                response = await default_client.get(url)
             
             if response.status_code == 200:
                 logger.info(f"[{request_id}] Successfully fetched {url}")
@@ -78,6 +170,8 @@ async def fetch_with_retry(url: str, is_binary: bool = False, attempts: int = MA
     return None
 
 @app.get("/hls/live2.mpd")
+@app.get("/hls/live2.m3u8")
+@app.get("/media/hls/files/index.m3u8")
 async def proxy_main_playlist():
     """Proxy the main m3u8 playlist file"""
     request_id = str(random.randint(10000, 99999))
@@ -92,37 +186,75 @@ async def proxy_main_playlist():
     
     if refresh_needed:
         logger.info(f"[{request_id}] Main playlist cache refresh needed")
-        response = await fetch_with_retry(MAIN_PLAYLIST_URL)
+        
+        # Find a working stream URL
+        stream_url = await find_working_stream_url()
+        
+        if not stream_url:
+            logger.error(f"[{request_id}] Failed to find working stream URL")
+            return Response(
+                content="Failed to find working stream URL",
+                status_code=503,
+                headers={"Access-Control-Allow-Origin": "*"}
+            )
+        
+        # Add proper headers for the streaming site
+        headers = {
+            "Referer": "https://iframv3.embedxt.site/",
+            "Origin": "https://iframv3.embedxt.site"
+        }
+        
+        response = await fetch_with_retry(stream_url, headers=headers)
         
         if response:
             content = response.text
-            logger.debug(f"[{request_id}] Main playlist content received: {content[:200]}...")
             
-            # Modify the playlist to point to our proxy for segments
-            lines = content.split('\n')
-            modified_lines = []
-            
-            for line in lines:
-                if line.startswith('#'):
-                    # Keep all comment/directive lines as is
-                    modified_lines.append(line)
-                elif line.startswith('http'):
-                    # Replace direct segment URLs with our proxy
-                    segment_url = line.strip()
-                    segment_id = segment_url.split('/')[-1]
-                    proxy_url = f"/proxy/segment/{segment_id}"
-                    modified_lines.append(proxy_url)
+            # Verify this is actually an HLS playlist
+            if not content.startswith('#EXTM3U'):
+                logger.error(f"[{request_id}] Response is not a valid HLS playlist")
+                if "main" in playlist_cache:
+                    # Use cached playlist if available
+                    modified_content = playlist_cache["main"]["content"]
+                    logger.info(f"[{request_id}] Using cached playlist as fallback")
                 else:
-                    modified_lines.append(line)
-            
-            modified_content = '\n'.join(modified_lines)
-            
-            # Store in cache
-            playlist_cache["main"] = {
-                "content": modified_content,
-                "timestamp": current_time
-            }
-            logger.info(f"[{request_id}] Refreshed main playlist")
+                    return Response(
+                        content="Invalid playlist received from source",
+                        status_code=503,
+                        headers={"Access-Control-Allow-Origin": "*"}
+                    )
+            else:
+                logger.debug(f"[{request_id}] Main playlist content received: {content[:200]}...")
+                
+                # Modify the playlist to point to our proxy for segments
+                lines = content.split('\n')
+                modified_lines = []
+                
+                for line in lines:
+                    if line.startswith('#'):
+                        # Keep all comment/directive lines as is
+                        modified_lines.append(line)
+                    elif line.startswith('http'):
+                        # Replace direct segment URLs with our proxy
+                        segment_url = line.strip()
+                        segment_id = segment_url.split('/')[-1]
+                        proxy_url = f"/proxy/segment/{segment_id}"
+                        modified_lines.append(proxy_url)
+                    elif line.strip() and not line.startswith('#'):
+                        # This could be a relative segment URL
+                        segment_id = line.strip()
+                        proxy_url = f"/proxy/segment/{segment_id}"
+                        modified_lines.append(proxy_url)
+                    else:
+                        modified_lines.append(line)
+                
+                modified_content = '\n'.join(modified_lines)
+                
+                # Store in cache
+                playlist_cache["main"] = {
+                    "content": modified_content,
+                    "timestamp": current_time
+                }
+                logger.info(f"[{request_id}] Refreshed main playlist")
         else:
             logger.error(f"[{request_id}] Failed to get main playlist")
             # If we have a cached version, use it even if expired
@@ -164,11 +296,18 @@ async def proxy_segment(segment_id: str):
             headers={"Access-Control-Allow-Origin": "*"}
         )
     
-    # Construct the segment URL
-    url = f"https://myww1.ruscfd.lat/{segment_id}"
+    # Construct the segment URL using the known base URL
+    url = f"{SEGMENT_BASE_URL}/{segment_id}"
+    logger.info(f"[{request_id}] Fetching segment from: {url}")
+    
+    # Add proper headers for the streaming site
+    headers = {
+        "Referer": "https://iframv3.embedxt.site/",
+        "Origin": "https://iframv3.embedxt.site"
+    }
     
     # Fetch the segment
-    response = await fetch_with_retry(url, is_binary=True)
+    response = await fetch_with_retry(url, is_binary=True, headers=headers)
     
     if response:
         logger.info(f"[{request_id}] Successfully fetched segment: {segment_id}")
@@ -195,12 +334,6 @@ async def proxy_segment(segment_id: str):
             status_code=503,
             headers={"Access-Control-Allow-Origin": "*"}
         )
-
-@app.get("/media/hls/files/index.m3u8")
-async def proxy_for_iframe():
-    """Proxy endpoint that matches the iframe src in the blog"""
-    # Redirect to our main playlist
-    return await proxy_main_playlist()
 
 @app.get("/embed")
 async def embed_player():
@@ -277,7 +410,7 @@ async def embed_player():
                             backBufferLength: 90
                         });
                         
-                        const playlistUrl = `${proxyBaseUrl}/hls/live2.mpd`;
+                        const playlistUrl = `${proxyBaseUrl}/hls/live2.m3u8`;
                         console.log("Loading playlist:", playlistUrl);
                         
                         hls.loadSource(playlistUrl);
@@ -318,7 +451,7 @@ async def embed_player():
                     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                         // For Safari
                         loadingIndicator.style.display = 'none';
-                        video.src = `${proxyBaseUrl}/hls/live2.mpd`;
+                        video.src = `${proxyBaseUrl}/hls/live2.m3u8`;
                         video.addEventListener('loadedmetadata', function() {
                             video.play().catch(err => console.error('Playback failed:', err));
                         });
@@ -368,7 +501,7 @@ async def root():
         "version": "2.0.0",
         "endpoints": {
             "embed": "/embed",
-            "main_playlist": "/hls/live2.mpd",
+            "main_playlist": "/hls/live2.m3u8",
             "segment": "/proxy/segment/{segment_id}",
             "iframe_compatible": "/media/hls/files/index.m3u8"
         }
