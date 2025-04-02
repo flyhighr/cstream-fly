@@ -96,49 +96,6 @@
             transform: scale(0.95);
         }
 
-        .quality-menu {
-            position: absolute;
-            bottom: 60px;
-            right: 16px;
-            background: rgba(18, 18, 18, 0.95);
-            border-radius: 8px;
-            padding: 8px 0;
-            display: none;
-            flex-direction: column;
-            min-width: 120px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
-            z-index: 20;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .quality-menu.visible {
-            display: flex;
-        }
-
-        .quality-option {
-            padding: 10px 16px;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            display: flex;
-            align-items: center;
-            font-size: 14px;
-        }
-
-        .quality-option:hover {
-            background-color: rgba(255,255,255,0.1);
-        }
-
-        .quality-option.active {
-            color: #3a86ff;
-            font-weight: 500;
-        }
-
-        .quality-option.active::before {
-            content: "✓";
-            margin-right: 8px;
-        }
-
         .progress-container {
             flex-grow: 1;
             height: 5px;
@@ -435,12 +392,6 @@
                         </svg>
                     </button>
 
-                    <button class="control-button tooltip" id="quality-toggle" data-tooltip="Quality">
-                        <svg class="icon" viewBox="0 0 24 24">
-                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7.5 13h2v2H11V9H9.5v2.5h-2V9H6v6h1.5zm6.5 2h.75v1.5h1.5V15H17c.55 0 1-.45 1-1v-4c0-.55-.45-1-1-1h-3c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1zm.5-4.5h2v3h-2v-3z"/>
-                        </svg>
-                    </button>
-
                     <button class="control-button tooltip" id="fullscreen-toggle" data-tooltip="Fullscreen (F)">
                         <svg class="icon" id="fullscreen-icon" viewBox="0 0 24 24">
                             <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
@@ -450,13 +401,6 @@
                         </svg>
                     </button>
                 </div>
-            </div>
-
-            <div class="quality-menu" id="quality-menu">
-                <div class="quality-option" data-quality="1080p">1080p</div>
-                <div class="quality-option" data-quality="720p">720p</div>
-                <div class="quality-option" data-quality="480p">480p</div>
-                <div class="quality-option" data-quality="360p">360p</div>
             </div>
 
             <div class="loading-overlay" id="loading-overlay">
@@ -490,9 +434,6 @@
             const progressContainer = document.getElementById('progress-container');
             const progressBar = document.getElementById('progress-bar');
             const timestamp = document.getElementById('timestamp');
-            const qualityToggle = document.getElementById('quality-toggle');
-            const qualityMenu = document.getElementById('quality-menu');
-            const qualityOptions = document.querySelectorAll('.quality-option');
             const loadingOverlay = document.getElementById('loading-overlay');
             const errorOverlay = document.getElementById('error-overlay');
             const errorMessage = document.getElementById('error-message');
@@ -501,7 +442,6 @@
             const videoContainer = document.querySelector('.video-container');
             const streamTitle = document.querySelector('.stream-title');
 
-            let currentQuality = '720p'; 
             let hls = null;
             let isFullscreen = false;
             let inactivityTimer;
@@ -509,19 +449,16 @@
             const proxyBaseUrl = window.location.origin;
 
             function updateStreamTitle() {
-                streamTitle.textContent = `Live Stream (${currentQuality})`;
+                streamTitle.textContent = `Live Stream`;
             }
 
-            updateQualityMenu();
             updateStreamTitle();
 
-            function loadStream(quality) {
-
+            function loadStream() {
                 loadingOverlay.style.display = 'flex';
                 errorOverlay.style.display = 'none';
                 bufferingIndicator.style.display = 'none';
 
-                currentQuality = quality;
                 updateStreamTitle();
 
                 if (hls) {
@@ -538,7 +475,7 @@
                         maxMaxBufferLength: 60
                     });
 
-                    const playlistUrl = `${proxyBaseUrl}/proxy/m3u8/${quality}`;
+                    const playlistUrl = `${proxyBaseUrl}/proxy/playlist`;
                     console.log("Loading playlist:", playlistUrl);
 
                     hls.loadSource(playlistUrl);
@@ -553,11 +490,9 @@
                         const playPromise = video.play();
                         if (playPromise !== undefined) {
                             playPromise.then(() => {
-
                                 updatePlayPauseButton();
                             }).catch(err => {
                                 console.error('Playback failed:', err);
-
                                 updatePlayPauseButton();
                             });
                         }
@@ -577,7 +512,7 @@
                                     break;
                                 default:
                                     console.error('Fatal error, cannot recover');
-                                    showError('Stream error. Please try again or select a different quality.');
+                                    showError('Stream error. Please try again.');
                                     break;
                             }
                         }
@@ -594,9 +529,8 @@
                     });
 
                 } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-
                     loadingOverlay.style.display = 'none';
-                    video.src = `${proxyBaseUrl}/proxy/m3u8/${quality}`;
+                    video.src = `${proxyBaseUrl}/proxy/playlist`;
                     video.addEventListener('loadedmetadata', function() {
                         video.play().catch(err => {
                             console.error('Playback failed:', err);
@@ -607,18 +541,6 @@
                     showError('Your browser does not support HLS playback');
                     console.error('HLS is not supported in this browser');
                 }
-
-                updateQualityMenu();
-            }
-
-            function updateQualityMenu() {
-                qualityOptions.forEach(option => {
-                    if (option.dataset.quality === currentQuality) {
-                        option.classList.add('active');
-                    } else {
-                        option.classList.remove('active');
-                    }
-                });
             }
 
             function formatTime(seconds) {
@@ -736,26 +658,6 @@
 
             fullscreenToggle.addEventListener('click', toggleFullscreen);
 
-            qualityToggle.addEventListener('click', function(e) {
-                e.stopPropagation();
-                qualityMenu.classList.toggle('visible');
-            });
-
-            document.addEventListener('click', function() {
-                qualityMenu.classList.remove('visible');
-            });
-
-            qualityMenu.addEventListener('click', function(e) {
-                e.stopPropagation();
-                if (e.target.classList.contains('quality-option')) {
-                    const newQuality = e.target.dataset.quality;
-                    if (newQuality !== currentQuality) {
-                        loadStream(newQuality);
-                    }
-                    qualityMenu.classList.remove('visible');
-                }
-            });
-
             progressContainer.addEventListener('click', function(e) {
                 const rect = progressContainer.getBoundingClientRect();
                 const pos = (e.clientX - rect.left) / rect.width;
@@ -800,7 +702,7 @@
             });
 
             retryButton.addEventListener('click', function() {
-                loadStream(currentQuality);
+                loadStream();
             });
 
             document.addEventListener('mousemove', function() {
@@ -831,22 +733,6 @@
                         video.currentTime -= 10;
                         showControlsTemporarily();
                         break;
-                    case '1':
-                        loadStream('360p');
-                        showControlsTemporarily();
-                        break;
-                    case '2':
-                        loadStream('480p');
-                        showControlsTemporarily();
-                        break;
-                    case '3':
-                        loadStream('720p');
-                        showControlsTemporarily();
-                        break;
-                    case '4':
-                        loadStream('1080p');
-                        showControlsTemporarily();
-                        break;
                 }
             });
 
@@ -865,7 +751,6 @@
                 if (!navigator.onLine) {
                     showError('You are offline. Please check your internet connection.');
                 } else if (hls && !video.paused && video.readyState === 0) {
-
                     console.log('Stream health check failed, attempting recovery...');
                     hls.startLoad();
                 }
@@ -877,7 +762,7 @@
                 });
             }
 
-            loadStream(currentQuality);
+            loadStream();
 
             video.volume = 0.7;
         });
