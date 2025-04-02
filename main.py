@@ -41,7 +41,7 @@ playlist_cache: Dict[str, Dict[str, Any]] = {}
 default_client = httpx.AsyncClient(timeout=10.0, follow_redirects=True)
 
 # Primary stream sources
-PRIMARY_PLAYLIST_URL = "https://xhls.embedxt.site/hls/live2.mp"
+PRIMARY_PLAYLIST_URL = "https://xhls.embedxt.site/hls/live2.mpd"
 SEGMENT_BASE_URL = "https://myww1.ruscfd.lat"
 
 async def fetch_with_retry(url: str, is_binary: bool = False, attempts: int = MAX_RETRIES):
