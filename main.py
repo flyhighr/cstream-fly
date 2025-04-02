@@ -8,6 +8,7 @@ from datetime import datetime
 from fastapi.middleware.cors import CORSMiddleware
 import random
 from typing import Dict, List, Optional, Any
+import re
 
 # Configure logging
 logging.basicConfig(
@@ -40,9 +41,8 @@ playlist_cache: Dict[str, Dict[str, Any]] = {}
 # HTTP clients
 default_client = httpx.AsyncClient(timeout=10.0, follow_redirects=True)
 
-# Primary stream sources
-PRIMARY_PLAYLIST_URL = "https://xhls.embedxt.site/hls/live2.mpd"
-SEGMENT_BASE_URL = "https://myww1.ruscfd.lat"
+# Source URLs
+MAIN_PLAYLIST_URL = "https://xhls.embedxt.site/hls/live2.mpd"
 
 async def fetch_with_retry(url: str, is_binary: bool = False, attempts: int = MAX_RETRIES):
     """Fetch a URL with multiple retry attempts"""
@@ -77,11 +77,11 @@ async def fetch_with_retry(url: str, is_binary: bool = False, attempts: int = MA
     logger.error(f"[{request_id}] All attempts to fetch {url} failed")
     return None
 
-@app.get("/proxy/playlist")
-async def proxy_playlist(background_tasks: BackgroundTasks):
-    """Proxy the m3u8 playlist file"""
+@app.get("/hls/live2.mpd")
+async def proxy_main_playlist():
+    """Proxy the main m3u8 playlist file"""
     request_id = str(random.randint(10000, 99999))
-    logger.info(f"[{request_id}] Playlist requested")
+    logger.info(f"[{request_id}] Main playlist requested")
     
     # Check if we need to refresh the cache
     current_time = time.time()
@@ -91,12 +91,12 @@ async def proxy_playlist(background_tasks: BackgroundTasks):
     )
     
     if refresh_needed:
-        logger.info(f"[{request_id}] Playlist cache refresh needed")
-        response = await fetch_with_retry(PRIMARY_PLAYLIST_URL)
+        logger.info(f"[{request_id}] Main playlist cache refresh needed")
+        response = await fetch_with_retry(MAIN_PLAYLIST_URL)
         
         if response:
             content = response.text
-            logger.debug(f"[{request_id}] Playlist content received: {content[:200]}...")
+            logger.debug(f"[{request_id}] Main playlist content received: {content[:200]}...")
             
             # Modify the playlist to point to our proxy for segments
             lines = content.split('\n')
@@ -108,7 +108,8 @@ async def proxy_playlist(background_tasks: BackgroundTasks):
                     modified_lines.append(line)
                 elif line.startswith('http'):
                     # Replace direct segment URLs with our proxy
-                    segment_id = line.split('/')[-1]
+                    segment_url = line.strip()
+                    segment_id = segment_url.split('/')[-1]
                     proxy_url = f"/proxy/segment/{segment_id}"
                     modified_lines.append(proxy_url)
                 else:
@@ -121,15 +122,15 @@ async def proxy_playlist(background_tasks: BackgroundTasks):
                 "content": modified_content,
                 "timestamp": current_time
             }
-            logger.info(f"[{request_id}] Refreshed playlist")
+            logger.info(f"[{request_id}] Refreshed main playlist")
         else:
-            logger.error(f"[{request_id}] Failed to get playlist")
+            logger.error(f"[{request_id}] Failed to get main playlist")
             # If we have a cached version, use it even if expired
             if "main" in playlist_cache:
                 modified_content = playlist_cache["main"]["content"]
-                logger.info(f"[{request_id}] Using cached playlist after fetch failure")
+                logger.info(f"[{request_id}] Using cached main playlist after fetch failure")
             else:
-                logger.error(f"[{request_id}] No cached playlist available")
+                logger.error(f"[{request_id}] No cached main playlist available")
                 return Response(
                     content=f"Failed to get playlist and no cache available", 
                     status_code=503,
@@ -137,10 +138,10 @@ async def proxy_playlist(background_tasks: BackgroundTasks):
                 )
     else:
         modified_content = playlist_cache["main"]["content"]
-        logger.debug(f"[{request_id}] Using cached playlist")
+        logger.debug(f"[{request_id}] Using cached main playlist")
     
     # Return the modified playlist
-    logger.info(f"[{request_id}] Returning playlist")
+    logger.info(f"[{request_id}] Returning main playlist")
     return Response(
         content=modified_content, 
         media_type="application/vnd.apple.mpegurl",
@@ -163,8 +164,8 @@ async def proxy_segment(segment_id: str):
             headers={"Access-Control-Allow-Origin": "*"}
         )
     
-    # Construct the URL for the segment
-    url = f"{SEGMENT_BASE_URL}/{segment_id}"
+    # Construct the segment URL
+    url = f"https://myww1.ruscfd.lat/{segment_id}"
     
     # Fetch the segment
     response = await fetch_with_retry(url, is_binary=True)
@@ -194,6 +195,12 @@ async def proxy_segment(segment_id: str):
             status_code=503,
             headers={"Access-Control-Allow-Origin": "*"}
         )
+
+@app.get("/media/hls/files/index.m3u8")
+async def proxy_for_iframe():
+    """Proxy endpoint that matches the iframe src in the blog"""
+    # Redirect to our main playlist
+    return await proxy_main_playlist()
 
 @app.get("/embed")
 async def embed_player():
@@ -270,7 +277,7 @@ async def embed_player():
                             backBufferLength: 90
                         });
                         
-                        const playlistUrl = `${proxyBaseUrl}/proxy/playlist`;
+                        const playlistUrl = `${proxyBaseUrl}/hls/live2.mpd`;
                         console.log("Loading playlist:", playlistUrl);
                         
                         hls.loadSource(playlistUrl);
@@ -311,7 +318,7 @@ async def embed_player():
                     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                         // For Safari
                         loadingIndicator.style.display = 'none';
-                        video.src = `${proxyBaseUrl}/proxy/playlist`;
+                        video.src = `${proxyBaseUrl}/hls/live2.mpd`;
                         video.addEventListener('loadedmetadata', function() {
                             video.play().catch(err => console.error('Playback failed:', err));
                         });
@@ -321,7 +328,7 @@ async def embed_player():
                     }
                 }
                 
-                // Initialize with default quality
+                // Initialize stream
                 loadStream();
                 
                 // Auto-reload stream if it stalls
@@ -358,11 +365,12 @@ async def root():
     """Root endpoint with basic server info"""
     return {
         "server": "HLS Stream Proxy",
-        "version": "1.3.0",
+        "version": "2.0.0",
         "endpoints": {
             "embed": "/embed",
-            "playlist": "/proxy/playlist",
-            "segment": "/proxy/segment/{segment_id}"
+            "main_playlist": "/hls/live2.mpd",
+            "segment": "/proxy/segment/{segment_id}",
+            "iframe_compatible": "/media/hls/files/index.m3u8"
         }
     }
 
