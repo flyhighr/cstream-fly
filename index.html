@@ -419,353 +419,388 @@
 
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function() {
+        const video = document.getElementById('video');
+        const playPauseBtn = document.getElementById('play-pause');
+        const playIcon = document.getElementById('play-icon');
+        const pauseIcon = document.getElementById('pause-icon');
+        const muteToggle = document.getElementById('mute-toggle');
+        const volumeIcon = document.getElementById('volume-icon');
+        const muteIcon = document.getElementById('mute-icon');
+        const fullscreenToggle = document.getElementById('fullscreen-toggle');
+        const fullscreenIcon = document.getElementById('fullscreen-icon');
+        const exitFullscreenIcon = document.getElementById('exit-fullscreen-icon');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const timestamp = document.getElementById('timestamp');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const errorOverlay = document.getElementById('error-overlay');
+        const errorMessage = document.getElementById('error-message');
+        const retryButton = document.getElementById('retry-button');
+        const bufferingIndicator = document.getElementById('buffering-indicator');
+        const videoContainer = document.querySelector('.video-container');
+        const streamTitle = document.querySelector('.stream-title');
 
-            const video = document.getElementById('video');
-            const playPauseBtn = document.getElementById('play-pause');
-            const playIcon = document.getElementById('play-icon');
-            const pauseIcon = document.getElementById('pause-icon');
-            const muteToggle = document.getElementById('mute-toggle');
-            const volumeIcon = document.getElementById('volume-icon');
-            const muteIcon = document.getElementById('mute-icon');
-            const fullscreenToggle = document.getElementById('fullscreen-toggle');
-            const fullscreenIcon = document.getElementById('fullscreen-icon');
-            const exitFullscreenIcon = document.getElementById('exit-fullscreen-icon');
-            const progressContainer = document.getElementById('progress-container');
-            const progressBar = document.getElementById('progress-bar');
-            const timestamp = document.getElementById('timestamp');
-            const loadingOverlay = document.getElementById('loading-overlay');
-            const errorOverlay = document.getElementById('error-overlay');
-            const errorMessage = document.getElementById('error-message');
-            const retryButton = document.getElementById('retry-button');
-            const bufferingIndicator = document.getElementById('buffering-indicator');
-            const videoContainer = document.querySelector('.video-container');
-            const streamTitle = document.querySelector('.stream-title');
+        let hls = null;
+        let isFullscreen = false;
+        let inactivityTimer;
+        let controlsVisibilityTimer;
+        const proxyBaseUrl = "https://cstream-fly.onrender.com";
 
-            let hls = null;
-            let isFullscreen = false;
-            let inactivityTimer;
-            let controlsVisibilityTimer;
-            const proxyBaseUrl = 'https://cstream-fly.onrender.com';
+        function updateStreamTitle() {
+            streamTitle.textContent = `Live Stream`;
+        }
 
-            function updateStreamTitle() {
-                streamTitle.textContent = `Live Stream`;
-            }
+        updateStreamTitle();
+
+        function loadStream() {
+            console.log("Starting to load stream...");
+            loadingOverlay.style.display = 'flex';
+            errorOverlay.style.display = 'none';
+            bufferingIndicator.style.display = 'none';
 
             updateStreamTitle();
 
-            function loadStream() {
-                loadingOverlay.style.display = 'flex';
-                errorOverlay.style.display = 'none';
-                bufferingIndicator.style.display = 'none';
+            if (hls) {
+                hls.destroy();
+                hls = null;
+            }
 
-                updateStreamTitle();
+            if (Hls.isSupported()) {
+                console.log("HLS.js is supported");
+                // Initialize with debug enabled to see more details
+                hls = new Hls({
+                    debug: true,
+                    enableWorker: true,
+                    lowLatencyMode: true,
+                    backBufferLength: 90,
+                    maxBufferLength: 30,
+                    maxMaxBufferLength: 60,
+                    // Explicitly set HLS parser options
+                    xhrSetup: function(xhr, url) {
+                        // Set appropriate headers for HLS content
+                        xhr.setRequestHeader('Accept', 'application/vnd.apple.mpegurl');
+                        console.log("Making XHR request to:", url);
+                    }
+                });
 
-                if (hls) {
-                    hls.destroy();
-                }
+                const playlistUrl = `${proxyBaseUrl}/hls/live2.mpd`;
+                console.log("Loading playlist:", playlistUrl);
 
-                if (Hls.isSupported()) {
-                    hls = new Hls({
-                        debug: false,
-                        enableWorker: true,
-                        lowLatencyMode: true,
-                        backBufferLength: 90,
-                        maxBufferLength: 30,
-                        maxMaxBufferLength: 60
-                    });
+                hls.loadSource(playlistUrl);
+                hls.attachMedia(video);
 
-                    const playlistUrl = `${proxyBaseUrl}/proxy/playlist`;
-                    console.log("Loading playlist:", playlistUrl);
-
-                    hls.loadSource(playlistUrl);
-                    hls.attachMedia(video);
-
-                    hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                        console.log('Manifest parsed, trying to play');
-                        setTimeout(() => {
-                            loadingOverlay.style.display = 'none';
-                        }, 500); 
-
-                        const playPromise = video.play();
-                        if (playPromise !== undefined) {
-                            playPromise.then(() => {
-                                updatePlayPauseButton();
-                            }).catch(err => {
-                                console.error('Playback failed:', err);
-                                updatePlayPauseButton();
-                            });
-                        }
-                    });
-
-                    hls.on(Hls.Events.ERROR, function(event, data) {
-                        console.error('HLS error:', data);
-                        if (data.fatal) {
-                            switch(data.type) {
-                                case Hls.ErrorTypes.NETWORK_ERROR:
-                                    console.log('Network error, trying to recover...');
-                                    hls.startLoad();
-                                    break;
-                                case Hls.ErrorTypes.MEDIA_ERROR:
-                                    console.log('Media error, trying to recover...');
-                                    hls.recoverMediaError();
-                                    break;
-                                default:
-                                    console.error('Fatal error, cannot recover');
-                                    showError('Stream error. Please try again.');
-                                    break;
-                            }
-                        }
-                    });
-
-                    hls.on(Hls.Events.BUFFER_APPENDING, function() {
-                        if (!video.paused) {
-                            bufferingIndicator.style.display = 'block';
-                        }
-                    });
-
-                    hls.on(Hls.Events.FRAG_BUFFERED, function() {
-                        bufferingIndicator.style.display = 'none';
-                    });
-
-                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    console.log('Manifest parsed successfully, trying to play');
                     loadingOverlay.style.display = 'none';
-                    video.src = `${proxyBaseUrl}/proxy/playlist`;
-                    video.addEventListener('loadedmetadata', function() {
-                        video.play().catch(err => {
+                    
+                    const playPromise = video.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            console.log("Playback started successfully");
+                            updatePlayPauseButton();
+                        }).catch(err => {
                             console.error('Playback failed:', err);
                             updatePlayPauseButton();
                         });
-                    });
-                } else {
-                    showError('Your browser does not support HLS playback');
-                    console.error('HLS is not supported in this browser');
-                }
-            }
-
-            function formatTime(seconds) {
-                const minutes = Math.floor(seconds / 60);
-                seconds = Math.floor(seconds % 60);
-                return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            }
-
-            function updateProgressBar() {
-                if (video.duration) {
-                    const progress = (video.currentTime / video.duration) * 100;
-                    progressBar.style.width = `${progress}%`;
-
-                    timestamp.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
-                } else {
-                    timestamp.textContent = "Live";
-                }
-            }
-
-            function updatePlayPauseButton() {
-                if (video.paused) {
-                    playIcon.style.display = 'block';
-                    pauseIcon.style.display = 'none';
-                } else {
-                    playIcon.style.display = 'none';
-                    pauseIcon.style.display = 'block';
-                }
-            }
-
-            function togglePlay() {
-                if (video.paused) {
-                    video.play().catch(err => {
-                        console.error('Play failed:', err);
-                        showError('Playback failed. Please try again.');
-                    });
-                } else {
-                    video.pause();
-                }
-                updatePlayPauseButton();
-            }
-
-            function toggleMute() {
-                video.muted = !video.muted;
-                if (video.muted) {
-                    volumeIcon.style.display = 'none';
-                    muteIcon.style.display = 'block';
-                } else {
-                    volumeIcon.style.display = 'block';
-                    muteIcon.style.display = 'none';
-                }
-            }
-
-            function toggleFullscreen() {
-                if (!isFullscreen) {
-                    if (videoContainer.requestFullscreen) {
-                        videoContainer.requestFullscreen();
-                    } else if (videoContainer.webkitRequestFullscreen) {
-                        videoContainer.webkitRequestFullscreen();
-                    } else if (videoContainer.msRequestFullscreen) {
-                        videoContainer.msRequestFullscreen();
                     }
-                    isFullscreen = true;
-                    fullscreenIcon.style.display = 'none';
-                    exitFullscreenIcon.style.display = 'block';
-                } else {
-                    if (document.exitFullscreen) {
-                        document.exitFullscreen();
-                    } else if (document.webkitExitFullscreen) {
-                        document.webkitExitFullscreen();
-                    } else if (document.msExitFullscreen) {
-                        document.msExitFullscreen();
+                });
+
+                hls.on(Hls.Events.ERROR, function(event, data) {
+                    console.error('HLS error:', data);
+                    if (data.fatal) {
+                        switch(data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                console.log('Network error, trying to recover...');
+                                // Try a different approach - use fetch to get the playlist content first
+                                fetch(playlistUrl)
+                                    .then(response => {
+                                        console.log("Fetch response status:", response.status);
+                                        if (response.ok) {
+                                            return response.text();
+                                        }
+                                        throw new Error('Network response was not ok.');
+                                    })
+                                    .then(content => {
+                                        console.log("Got playlist content:", content.substring(0, 200) + "...");
+                                        if (content.includes('#EXTM3U')) {
+                                            console.log("Content is a valid HLS playlist, trying to load again");
+                                            hls.startLoad();
+                                        } else {
+                                            console.error("Content is not a valid HLS playlist");
+                                            showError('Invalid playlist content received');
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Fetch error:', error);
+                                        showError('Failed to fetch playlist: ' + error.message);
+                                    });
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                console.log('Media error, trying to recover...');
+                                hls.recoverMediaError();
+                                break;
+                            default:
+                                console.error('Fatal error, cannot recover');
+                                showError('Stream error: ' + data.details);
+                                break;
+                        }
                     }
-                    isFullscreen = false;
-                    fullscreenIcon.style.display = 'block';
-                    exitFullscreenIcon.style.display = 'none';
-                }
-            }
+                });
 
-            function showError(message) {
-                loadingOverlay.style.display = 'none';
-                errorOverlay.style.display = 'flex';
-                errorMessage.textContent = message;
-            }
+                // Additional events for better debugging
+                hls.on(Hls.Events.MANIFEST_LOADING, function() {
+                    console.log('Manifest loading...');
+                });
 
-            function resetInactivityTimer() {
-                clearTimeout(inactivityTimer);
-                document.body.style.cursor = 'default';
-                inactivityTimer = setTimeout(() => {
+                hls.on(Hls.Events.LEVEL_LOADED, function(event, data) {
+                    console.log('Level loaded:', data);
+                });
+
+                hls.on(Hls.Events.BUFFER_APPENDING, function() {
                     if (!video.paused) {
-                        document.body.style.cursor = 'none';
+                        bufferingIndicator.style.display = 'block';
                     }
+                });
+
+                hls.on(Hls.Events.FRAG_BUFFERED, function() {
+                    bufferingIndicator.style.display = 'none';
+                });
+
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                console.log("Using native HLS support");
+                loadingOverlay.style.display = 'none';
+                video.src = `${proxyBaseUrl}/hls/live2.mpd`;
+                video.addEventListener('loadedmetadata', function() {
+                    video.play().catch(err => {
+                        console.error('Playback failed:', err);
+                        updatePlayPauseButton();
+                    });
+                });
+            } else {
+                showError('Your browser does not support HLS playback');
+                console.error('HLS is not supported in this browser');
+            }
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            seconds = Math.floor(seconds % 60);
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function updateProgressBar() {
+            if (video.duration) {
+                const progress = (video.currentTime / video.duration) * 100;
+                progressBar.style.width = `${progress}%`;
+
+                timestamp.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+            } else {
+                timestamp.textContent = "Live";
+            }
+        }
+
+        function updatePlayPauseButton() {
+            if (video.paused) {
+                playIcon.style.display = 'block';
+                pauseIcon.style.display = 'none';
+            } else {
+                playIcon.style.display = 'none';
+                pauseIcon.style.display = 'block';
+            }
+        }
+
+        function togglePlay() {
+            if (video.paused) {
+                video.play().catch(err => {
+                    console.error('Play failed:', err);
+                    showError('Playback failed. Please try again.');
+                });
+            } else {
+                video.pause();
+            }
+            updatePlayPauseButton();
+        }
+
+        function toggleMute() {
+            video.muted = !video.muted;
+            if (video.muted) {
+                volumeIcon.style.display = 'none';
+                muteIcon.style.display = 'block';
+            } else {
+                volumeIcon.style.display = 'block';
+                muteIcon.style.display = 'none';
+            }
+        }
+
+        function toggleFullscreen() {
+            if (!isFullscreen) {
+                if (videoContainer.requestFullscreen) {
+                    videoContainer.requestFullscreen();
+                } else if (videoContainer.webkitRequestFullscreen) {
+                    videoContainer.webkitRequestFullscreen();
+                } else if (videoContainer.msRequestFullscreen) {
+                    videoContainer.msRequestFullscreen();
+                }
+                isFullscreen = true;
+                fullscreenIcon.style.display = 'none';
+                exitFullscreenIcon.style.display = 'block';
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+                isFullscreen = false;
+                fullscreenIcon.style.display = 'block';
+                exitFullscreenIcon.style.display = 'none';
+            }
+        }
+
+        function showError(message) {
+            loadingOverlay.style.display = 'none';
+            errorOverlay.style.display = 'flex';
+            errorMessage.textContent = message;
+        }
+
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimer);
+            document.body.style.cursor = 'default';
+            inactivityTimer = setTimeout(() => {
+                if (!video.paused) {
+                    document.body.style.cursor = 'none';
+                }
+            }, 3000);
+        }
+
+        function showControlsTemporarily() {
+            const controlsOverlay = document.querySelector('.controls-overlay');
+            const titleBar = document.querySelector('.title-bar');
+
+            controlsOverlay.style.opacity = '1';
+            titleBar.style.opacity = '1';
+
+            clearTimeout(controlsVisibilityTimer);
+
+            if (!video.paused) {
+                controlsVisibilityTimer = setTimeout(() => {
+                    controlsOverlay.style.opacity = '0';
+                    titleBar.style.opacity = '0';
                 }, 3000);
             }
+        }
 
-            function showControlsTemporarily() {
-                const controlsOverlay = document.querySelector('.controls-overlay');
-                const titleBar = document.querySelector('.title-bar');
+        playPauseBtn.addEventListener('click', togglePlay);
+        muteToggle.addEventListener('click', toggleMute);
+        fullscreenToggle.addEventListener('click', toggleFullscreen);
 
-                controlsOverlay.style.opacity = '1';
-                titleBar.style.opacity = '1';
-
-                clearTimeout(controlsVisibilityTimer);
-
-                if (!video.paused) {
-                    controlsVisibilityTimer = setTimeout(() => {
-                        controlsOverlay.style.opacity = '0';
-                        titleBar.style.opacity = '0';
-                    }, 3000);
-                }
-            }
-
-            playPauseBtn.addEventListener('click', togglePlay);
-
-            muteToggle.addEventListener('click', toggleMute);
-
-            fullscreenToggle.addEventListener('click', toggleFullscreen);
-
-            progressContainer.addEventListener('click', function(e) {
-                const rect = progressContainer.getBoundingClientRect();
-                const pos = (e.clientX - rect.left) / rect.width;
-                video.currentTime = pos * video.duration;
-            });
-
-            video.addEventListener('timeupdate', updateProgressBar);
-
-            video.addEventListener('play', updatePlayPauseButton);
-            video.addEventListener('pause', updatePlayPauseButton);
-
-            videoContainer.addEventListener('dblclick', toggleFullscreen);
-
-            document.addEventListener('fullscreenchange', function() {
-                isFullscreen = !!document.fullscreenElement;
-                if (isFullscreen) {
-                    fullscreenIcon.style.display = 'none';
-                    exitFullscreenIcon.style.display = 'block';
-                } else {
-                    fullscreenIcon.style.display = 'block';
-                    exitFullscreenIcon.style.display = 'none';
-                }
-            });
-
-            video.addEventListener('stalled', function() {
-                console.log('Stream stalled, reloading...');
-                bufferingIndicator.style.display = 'block';
-                setTimeout(() => {
-                    if (hls) {
-                        hls.startLoad();
-                    }
-                }, 2000);
-            });
-
-            video.addEventListener('waiting', function() {
-                bufferingIndicator.style.display = 'block';
-            });
-
-            video.addEventListener('playing', function() {
-                bufferingIndicator.style.display = 'none';
-                loadingOverlay.style.display = 'none';
-            });
-
-            retryButton.addEventListener('click', function() {
-                loadStream();
-            });
-
-            document.addEventListener('mousemove', function() {
-                resetInactivityTimer();
-                showControlsTemporarily();
-            });
-
-            document.addEventListener('keydown', function(e) {
-                switch(e.key) {
-                    case ' ':
-                    case 'k':
-                        togglePlay();
-                        showControlsTemporarily();
-                        break;
-                    case 'm':
-                        toggleMute();
-                        showControlsTemporarily();
-                        break;
-                    case 'f':
-                        toggleFullscreen();
-                        showControlsTemporarily();
-                        break;
-                    case 'ArrowRight':
-                        video.currentTime += 10;
-                        showControlsTemporarily();
-                        break;
-                    case 'ArrowLeft':
-                        video.currentTime -= 10;
-                        showControlsTemporarily();
-                        break;
-                }
-            });
-
-            videoContainer.addEventListener('touchstart', function() {
-                showControlsTemporarily();
-            });
-
-            setInterval(() => {
-                if (hls && !video.paused && video.readyState < 3) {
-                    console.log('Refreshing stream...');
-                    hls.startLoad();
-                }
-            }, 60000);  
-
-            setInterval(() => {
-                if (!navigator.onLine) {
-                    showError('You are offline. Please check your internet connection.');
-                } else if (hls && !video.paused && video.readyState === 0) {
-                    console.log('Stream health check failed, attempting recovery...');
-                    hls.startLoad();
-                }
-            }, 10000); 
-
-            if (screen.orientation && screen.orientation.unlock) {
-                screen.orientation.unlock().catch(err => {
-                    console.error('Failed to unlock screen orientation:', err);
-                });
-            }
-
-            loadStream();
-
-            video.volume = 0.7;
+        progressContainer.addEventListener('click', function(e) {
+            const rect = progressContainer.getBoundingClientRect();
+            const pos = (e.clientX - rect.left) / rect.width;
+            video.currentTime = pos * video.duration;
         });
+
+        video.addEventListener('timeupdate', updateProgressBar);
+        video.addEventListener('play', updatePlayPauseButton);
+        video.addEventListener('pause', updatePlayPauseButton);
+        videoContainer.addEventListener('dblclick', toggleFullscreen);
+
+        document.addEventListener('fullscreenchange', function() {
+            isFullscreen = !!document.fullscreenElement;
+            if (isFullscreen) {
+                fullscreenIcon.style.display = 'none';
+                exitFullscreenIcon.style.display = 'block';
+            } else {
+                fullscreenIcon.style.display = 'block';
+                exitFullscreenIcon.style.display = 'none';
+            }
+        });
+
+        video.addEventListener('stalled', function() {
+            console.log('Stream stalled, reloading...');
+            bufferingIndicator.style.display = 'block';
+            setTimeout(() => {
+                if (hls) {
+                    hls.startLoad();
+                }
+            }, 2000);
+        });
+
+        video.addEventListener('waiting', function() {
+            bufferingIndicator.style.display = 'block';
+        });
+
+        video.addEventListener('playing', function() {
+            console.log("Video is now playing");
+            bufferingIndicator.style.display = 'none';
+            loadingOverlay.style.display = 'none';
+        });
+
+        retryButton.addEventListener('click', function() {
+            loadStream();
+        });
+
+        document.addEventListener('mousemove', function() {
+            resetInactivityTimer();
+            showControlsTemporarily();
+        });
+
+        document.addEventListener('keydown', function(e) {
+            switch(e.key) {
+                case ' ':
+                case 'k':
+                    togglePlay();
+                    showControlsTemporarily();
+                    break;
+                case 'm':
+                    toggleMute();
+                    showControlsTemporarily();
+                    break;
+                case 'f':
+                    toggleFullscreen();
+                    showControlsTemporarily();
+                    break;
+                case 'ArrowRight':
+                    video.currentTime += 10;
+                    showControlsTemporarily();
+                    break;
+                case 'ArrowLeft':
+                    video.currentTime -= 10;
+                    showControlsTemporarily();
+                    break;
+            }
+        });
+
+        videoContainer.addEventListener('touchstart', function() {
+            showControlsTemporarily();
+        });
+
+        // Try direct fetch of the playlist to verify it's working
+        fetch(`${proxyBaseUrl}/hls/live2.mpd`)
+            .then(response => {
+                console.log("Direct fetch status:", response.status);
+                return response.text();
+            })
+            .then(content => {
+                console.log("Direct fetch content preview:", content.substring(0, 200) + "...");
+                if (content.includes('#EXTM3U')) {
+                    console.log("Content is a valid HLS playlist");
+                } else {
+                    console.warn("Content doesn't appear to be a valid HLS playlist");
+                }
+            })
+            .catch(error => {
+                console.error("Direct fetch error:", error);
+            });
+
+        // Set default volume
+        video.volume = 0.7;
+        
+        // Initial load
+        loadStream();
+    });
     </script>
 </body>
 </html>
